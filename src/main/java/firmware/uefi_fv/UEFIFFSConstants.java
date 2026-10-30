@@ -187,4 +187,8 @@ UEFIFFSConstants {
 	// CRC-32 GUID (for GUID-defined sections)
 	public static final UUID CRC32_GUID =
 			UUID.fromString("FC1BCDB0-7D31-49AA-936A-A4600D9DD083");
+
+	// AMD Zlib compression GUID (for GUID-defined sections)
+	public static final UUID AMD_ZLIB_COMPRESS_GUID =
+			UUID.fromString("CE3233F5-2CD6-4D87-9152-4A238BB6D1C4");
 }

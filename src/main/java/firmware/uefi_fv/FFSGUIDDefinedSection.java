@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.util.Formatter;
 import java.util.UUID;
 import java.util.zip.CRC32;
+import java.util.zip.InflaterInputStream;
 
 import ghidra.app.util.bin.ByteProvider;
 import ghidra.formats.gfilesystem.fileinfo.FileAttributes;
@@ -121,6 +122,40 @@ public class FFSGUIDDefinedSection extends FFSSection {
 				reader.setPointerIndex(baseIndex + getTotalLength());
 				return;
 			}
+		} else if (sectionDefinitionGuid.equals(UEFIFFSConstants.AMD_ZLIB_COMPRESS_GUID)) {
+			// AMD Zlib GUID-defined sections contain a 0x100-byte vendor header followed by
+			// the compressed payload. The compressed size is stored at offset 0x14.
+			if (length() < 0x100) {
+				Msg.error(this, "AMD Zlib section is smaller than its 0x100-byte header");
+				reader.setPointerIndex(baseIndex + getTotalLength());
+				return;
+			}
+
+			long dataIndex = reader.getPointerIndex();
+			reader.setPointerIndex(dataIndex + 0x14);
+			long compressedSize = reader.readNextUnsignedInt();
+			long maxCompressedSize = length() - 0x100;
+			if (compressedSize > maxCompressedSize) {
+				Msg.error(this, String.format(
+						"Invalid AMD Zlib compressed size: %d exceeds available payload %d",
+						compressedSize, maxCompressedSize));
+				reader.setPointerIndex(baseIndex + getTotalLength());
+				return;
+			}
+
+			BoundedInputStream boundedStream = new BoundedInputStream(
+					reader.getByteProvider().getInputStream(dataIndex + 0x100), compressedSize);
+			try (InflaterInputStream inputStream = new InflaterInputStream(boundedStream)) {
+				uncompressedData = inputStream.readAllBytes();
+
+				BinaryReader sectionReader = new BinaryReader(
+						new ByteArrayProvider(uncompressedData), true);
+				parseNestedSections(sectionReader, uncompressedData.length, fsih, fileImpl);
+			} catch (IOException e) {
+				Msg.error(this, "Failed to extract AMD Zlib compressed section: " + e.getMessage());
+				reader.setPointerIndex(baseIndex + getTotalLength());
+				return;
+			}
 		} else if (sectionDefinitionGuid.equals(UEFIFFSConstants.CRC32_GUID)) {
 			// Read the expected CRC-32 checksum, which is located directly after the attributes
 			// field in the section header.
@@ -142,8 +177,13 @@ public class FFSGUIDDefinedSection extends FFSSection {
 			BinaryReader sectionReader = new BinaryReader(
 					new ByteArrayProvider(uncompressedData), true);
 			parseNestedSections(sectionReader, uncompressedData.length, fsih, fileImpl);
+		} else if ((attributes &
+				UEFIFFSConstants.DefinedSectionAttributes.PROCESSING_REQUIRED) != 0) {
+			// The payload cannot be interpreted without a handler for this GUID. Keep it opaque
+			// instead of treating compressed/encrypted bytes as nested FFS sections.
+			new FFSRawFile(reader, (int) length(), fsih, fileImpl);
 		} else {
-			// Parse the data in the current GUID-defined section.
+			// No additional processing is required, so parse the payload as nested sections.
 			parseNestedSections(reader, length(), fsih, fileImpl);
 		}
 
