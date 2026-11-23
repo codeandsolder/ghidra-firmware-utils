@@ -37,18 +37,23 @@ jobs:
       uses: actions/setup-java@v4
       with:
         distribution: 'temurin'
-        java-version: '21'
+        java-version: '25'
 
     - name: Install Ghidra
       uses: antoniovazquezblanco/setup-ghidra@4ecf6e0dc501f8efc1d74d93645c6d5c1df7f441 # v1.2.1
       with:
         auth_token: ${{ secrets.GITHUB_TOKEN }}
+        version: '12.2'
 
     - name: Setup Gradle
       uses: gradle/gradle-build-action@v2.11.1
 
     - name: Build natives
       run: ./gradlew efidecompressSharedLibrary copyLibraries -PGHIDRA_INSTALL_DIR=${{ env.GHIDRA_INSTALL_DIR }}
+
+    - name: Java quality gate
+      if: matrix.os == 'ubuntu-latest'
+      run: ./gradlew --no-daemon check -PGHIDRA_INSTALL_DIR=${{ env.GHIDRA_INSTALL_DIR }}
 
     - name: Upload natives
       uses: actions/upload-artifact@v4
@@ -95,8 +100,8 @@ jobs:
         path: os/
         merge-multiple: true
  
-    - name: Build the plugin
-      run: ./gradlew -PGHIDRA_INSTALL_DIR=${{ env.GHIDRA_INSTALL_DIR }}
+    - name: Build and quality-check the plugin
+      run: ./gradlew --no-daemon check buildExtension -PGHIDRA_INSTALL_DIR=${{ env.GHIDRA_INSTALL_DIR }}
 
     - name: Upload to Artifacts
       uses: actions/upload-artifact@v4

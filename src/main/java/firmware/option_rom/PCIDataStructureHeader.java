@@ -55,7 +55,7 @@ public class PCIDataStructureHeader implements StructConverter {
 	 */
 	public PCIDataStructureHeader(BinaryReader reader) throws IOException {
 		signature = reader.readNextAsciiString(OptionROMConstants.PCIR_SIGNATURE.length());
-		if (!signature.equals(OptionROMConstants.PCIR_SIGNATURE)) {
+		if (!OptionROMConstants.PCIR_SIGNATURE.equals(signature)) {
 			throw new IOException("Not a valid PCI data structure header");
 		}
 

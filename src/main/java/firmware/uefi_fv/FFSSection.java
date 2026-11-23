@@ -174,6 +174,7 @@ public abstract class FFSSection implements UEFIFile {
 	 *
 	 * @return FileAttributes for the current FFS section
 	 */
+	@Override
 	public FileAttributes getFileAttributes() {
 		FileAttributes attributes = new FileAttributes();
 		attributes.add(FileAttributeType.NAME_ATTR, getName());

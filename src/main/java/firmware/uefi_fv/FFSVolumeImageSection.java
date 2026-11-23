@@ -29,7 +29,7 @@ import ghidra.formats.gfilesystem.GFile;
  *
  * Firmware volume image sections contain an embedded UEFI firmware volume.
  */
-public class FFSVolumeImageSection extends FFSSection {
+public final class FFSVolumeImageSection extends FFSSection {
 	/**
 	 * Constructs a FFSVolumeImageSection from a specified BinaryReader and adds it to a specified
 	 * FileSystemIndexHelper.

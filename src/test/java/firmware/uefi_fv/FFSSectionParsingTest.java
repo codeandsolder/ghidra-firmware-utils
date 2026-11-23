@@ -7,22 +7,15 @@ import ghidra.app.util.bin.BinaryReader;
 import ghidra.app.util.bin.ByteArrayProvider;
 import ghidra.util.task.TaskMonitor;
 
+import org.junit.jupiter.api.Test;
+
 /**
  * Small synthetic-corpus regression harness; no installed firmware or GUI is required.
  * Run with Gradle verifyFfsParsing (also part of buildExtension).
  */
-public final class FFSSectionParsingTest {
-	private FFSSectionParsingTest() {}
-
-	public static void main(String[] args) throws Exception {
-		checkNormalSection();
-		checkExtendedSection();
-		checkInvalidLengths();
-		checkVolumeSignatureScanning();
-		System.out.println("FFS section parsing: 19 assertions passed");
-	}
-
-	private static void checkNormalSection() throws IOException {
+final class FFSSectionParsingTest {
+	@Test
+	void checkNormalSection() throws IOException {
 		byte[] bytes = { 8, 0, 0, UEFIFFSConstants.SectionType.RAW, 1, 2, 3, 4 };
 		BinaryReader reader = new BinaryReader(new ByteArrayProvider(bytes), true);
 		FFSSection section = FFSSectionFactory.parseSection(reader);
@@ -34,7 +27,8 @@ public final class FFSSectionParsingTest {
 				new byte[] { 1, 2, 3, 4 }), "standard body bytes");
 	}
 
-	private static void checkExtendedSection() throws IOException {
+	@Test
+	void checkExtendedSection() throws IOException {
 		byte[] bytes = { (byte) 0xff, (byte) 0xff, (byte) 0xff,
 				UEFIFFSConstants.SectionType.RAW, 12, 0, 0, 0, 5, 6, 7, 8 };
 		BinaryReader reader = new BinaryReader(new ByteArrayProvider(bytes), true);
@@ -47,7 +41,8 @@ public final class FFSSectionParsingTest {
 				new byte[] { 5, 6, 7, 8 }), "extended body bytes");
 	}
 
-	private static void checkInvalidLengths() throws IOException {
+	@Test
+	void checkInvalidLengths() throws IOException {
 		expectInvalid(new byte[] { 3, 0, 0, 0 }, 4);
 		expectInvalid(new byte[] { 12, 0, 0, 0 }, 8);
 		expectInvalid(new byte[] { (byte) 0xff, (byte) 0xff, (byte) 0xff, 0 }, 4);
@@ -59,7 +54,8 @@ public final class FFSSectionParsingTest {
 		expectInvalid(new byte[] { 8, 0, 0, 0, 1, 2, 3, 4 }, 7);
 	}
 
-	private static void checkVolumeSignatureScanning() throws Exception {
+	@Test
+	void checkVolumeSignatureScanning() throws Exception {
 		byte[] exactlyOneHeader = new byte[64];
 		writeSignature(exactlyOneHeader, 40);
 		require(UEFIFirmwareVolumeHeader.findNext(new ByteArrayProvider(exactlyOneHeader),

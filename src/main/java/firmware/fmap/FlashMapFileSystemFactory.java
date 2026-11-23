@@ -58,7 +58,7 @@ public class FlashMapFileSystemFactory implements GFileSystemFactoryByteProvider
 		while (remainingLength >= FlashMapConstants.FMAP_SIGNATURE.length()) {
 			String signature = new String(provider.readBytes(offset, FlashMapConstants.FMAP_SIGNATURE.length()),
 					StandardCharsets.US_ASCII);
-			if (signature.equals(FlashMapConstants.FMAP_SIGNATURE)) {
+			if (FlashMapConstants.FMAP_SIGNATURE.equals(signature)) {
 				Msg.debug(this, String.format("Found FMAP signature at 0x%X", offset));
 				return offset;
 			}

@@ -51,6 +51,7 @@ import ghidra.formats.gfilesystem.fileinfo.FileAttributes;
  * UEFIFFSConstants.FileType for possible FFS file Type values.
  */
 public class UEFIFFSFile implements UEFIFile {
+	private static final String HEX_FORMAT = "%#x";
 	// Original header fields
 	private final UUID nameGuid;
 	private final byte headerChecksum;
@@ -231,16 +232,17 @@ public class UEFIFFSFile implements UEFIFile {
 	 *
 	 * @return FileAttributes for the current FFS file
 	 */
+	@Override
 	public FileAttributes getFileAttributes() {
 		FileAttributes attributes = new FileAttributes();
 		attributes.add(FileAttributeType.NAME_ATTR, getName());
 		attributes.add(FileAttributeType.SIZE_ATTR, Long.valueOf(size));
 		attributes.add("GUID", nameGuid.toString());
-		attributes.add("Header Checksum", String.format("%#x", headerChecksum));
-		attributes.add("File Checksum", String.format("%#x", fileChecksum));
+		attributes.add("Header Checksum", String.format(HEX_FORMAT, headerChecksum));
+		attributes.add("File Checksum", String.format(HEX_FORMAT, fileChecksum));
 		attributes.add("File Type", UEFIFFSConstants.FileType.toString(type));
-		attributes.add("Attributes", String.format("%#x", this.attributes));
-		attributes.add("State", String.format("%#x", state));
+		attributes.add("Attributes", String.format(HEX_FORMAT, this.attributes));
+		attributes.add("State", String.format(HEX_FORMAT, state));
 		return attributes;
 	}
 }

@@ -16,7 +16,8 @@
 
 package firmware.uefi_fv;
 
-import java.io.*;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.util.Formatter;
 
 import ghidra.app.util.bin.ByteProvider;
@@ -51,7 +52,7 @@ import ghidra.util.Msg;
  * A Compression Type value of 0x01 (STANDARD_COMPRESSION) indicates that the section is compressed
  * with the EFI Compression Algorithm or the Tiano Compression Algorithm.
  */
-public class FFSCompressedSection extends FFSSection {
+public final class FFSCompressedSection extends FFSSection {
 	// Original header fields
 	private final int uncompressedSize;
 	private final byte compressionType;
@@ -187,6 +188,7 @@ public class FFSCompressedSection extends FFSSection {
 	 *
 	 * @return FileAttributes for the current compressed section
 	 */
+	@Override
 	public FileAttributes getFileAttributes() {
 		FileAttributes attributes = new FileAttributes();
 		attributes.add("Uncompressed Size", uncompressedSize);

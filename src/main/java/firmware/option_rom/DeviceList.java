@@ -26,7 +26,8 @@ import ghidra.program.model.data.StructureDataType;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Formatter;
+import java.util.List;
+import java.util.StringJoiner;
 
 /**
  * Parser for the PCI expansion ROM device list. The device list is a zero-terminated list of
@@ -34,7 +35,7 @@ import java.util.Formatter;
  * used to calculate the device list's location.
  */
 public class DeviceList implements StructConverter {
-	private final ArrayList<Short> deviceList;
+	private final List<Short> deviceList;
 
 	/**
 	 * Constructs a DeviceList from a specified BinaryReader.
@@ -59,19 +60,19 @@ public class DeviceList implements StructConverter {
 	 */
 	public FileAttributes getFileAttributes() {
 		FileAttributes attributes = new FileAttributes();
-		Formatter formatter = new Formatter();
+		StringJoiner ids = new StringJoiner(" ");
 		for (short deviceID : deviceList) {
-			formatter.format("0x%02X ", deviceID);
+			ids.add(String.format("0x%04X", deviceID & 0xffff));
 		}
 
-		attributes.add("Supported Device IDs", formatter.toString());
+		attributes.add("Supported Device IDs", ids.toString());
 		return attributes;
 	}
 
 	@Override
 	public DataType toDataType() {
 		Structure structure = new StructureDataType("device_list_t", 0);
-		if (deviceList.size() > 0) {
+		if (!deviceList.isEmpty()) {
 			structure.add(new ArrayDataType(WORD, deviceList.size(), 2), "supported_device_ids",
 					null);
 		}

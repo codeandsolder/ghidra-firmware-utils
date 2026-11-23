@@ -45,7 +45,7 @@ import java.io.IOException;
  *
  * The Entry Point field in the ROM header usually contains a JMP (rel8 or rel16) instruction.
  */
-public class LegacyOptionROMHeader extends OptionROMHeader {
+public final class LegacyOptionROMHeader extends OptionROMHeader {
 	// Original header fields
 	private final byte imageSize;
 	private final byte[] entryPointInstruction;
@@ -109,6 +109,7 @@ public class LegacyOptionROMHeader extends OptionROMHeader {
 	 *
 	 * @return FileAttributes for the current image
 	 */
+	@Override
 	public FileAttributes getFileAttributes() {
 		FileAttributes attributes = super.getFileAttributes();
 		attributes.add("Entry Point Instruction", String.format("%02X %02X %02X", entryPointInstruction[0],

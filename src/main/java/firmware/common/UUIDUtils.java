@@ -22,25 +22,31 @@ import ghidra.util.Msg;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
+import java.nio.file.Files;
+import java.nio.charset.StandardCharsets;
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 /**
  * Various UUID utilities.
  */
 public class UUIDUtils {
-	private static HashMap<UUID, String> guidMap = new HashMap<>();
+	private static final Map<UUID, String> guidMap = new HashMap<>();
 
 	static {
 		try {
 			// Read the list of GUIDs to populate the GUID database.
 			File guidDbFile = Application.getModuleDataFile("guids.csv").getFile(true);
-			try (BufferedReader reader = new BufferedReader(new FileReader(guidDbFile))) {
-				for (String line; (line = reader.readLine()) != null;) {
-					String[] parsedLine = line.split(",");
-					guidMap.put(UUID.fromString(parsedLine[0]), parsedLine[1]);
+			try (BufferedReader reader = Files.newBufferedReader(guidDbFile.toPath(), StandardCharsets.UTF_8)) {
+				String line = reader.readLine();
+				while (line != null) {
+					String[] parsedLine = line.split(",", 2);
+					if (parsedLine.length == 2) {
+						guidMap.put(UUID.fromString(parsedLine[0]), parsedLine[1]);
+					}
+					line = reader.readLine();
 				}
 			}
 

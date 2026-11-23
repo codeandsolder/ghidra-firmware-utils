@@ -107,19 +107,23 @@ public class CBFSFile {
 	public ByteProvider getByteProvider() throws IOException, CancelledException {
 		// Extract the file if compression is used (specified in a compression attribute).
 		if (attribute != null && attribute instanceof CBFSCompressionAttribute) {
-			InputStream is = new ByteArrayInputStream(data);
 			int compressionType = ((CBFSCompressionAttribute) attribute).getCompressionType();
-			switch (compressionType) {
-				case CBFSConstants.CompressionAlgorithm.NONE: break;
-				case CBFSConstants.CompressionAlgorithm.LZMA: is = new LZMACompressorInputStream(is); break;
-				case CBFSConstants.CompressionAlgorithm.LZ4: is = new FramedLZ4CompressorInputStream(is); break;
-				default: throw new IOException("Unsupported CBFS compression type: " + compressionType);
+			InputStream source = new ByteArrayInputStream(data);
+			try (InputStream decompressed = switch (compressionType) {
+					case CBFSConstants.CompressionAlgorithm.NONE -> source;
+					case CBFSConstants.CompressionAlgorithm.LZMA ->
+						new LZMACompressorInputStream(source);
+					case CBFSConstants.CompressionAlgorithm.LZ4 ->
+						new FramedLZ4CompressorInputStream(source);
+					default -> throw new IOException(
+							"Unsupported CBFS compression type: " + compressionType);
+				};
+				FileCache.FileCacheEntryBuilder builder =
+						FileSystemService.getInstance().createTempFile(-1)) {
+				FSUtilities.streamCopy(decompressed, builder, TaskMonitor.DUMMY);
+				FileCache.FileCacheEntry entry = builder.finish();
+				return FileSystemService.getInstance().getNamedTempFile(entry, name);
 			}
-
-			FileCache.FileCacheEntryBuilder tmpFileBuilder = FileSystemService.getInstance().createTempFile(-1);
-			FSUtilities.streamCopy(is, tmpFileBuilder, TaskMonitor.DUMMY);
-			FileCache.FileCacheEntry fce = tmpFileBuilder.finish();
-			return FileSystemService.getInstance().getNamedTempFile(fce, name);
 		} else {
 			return new ByteArrayProvider(data);
 		}
@@ -174,6 +178,8 @@ public class CBFSFile {
 			switch (((CBFSCompressionAttribute) attribute).getCompressionType()) {
 				case CBFSConstants.CompressionAlgorithm.LZMA:
 					attributes.add("Compression Type", "LZMA");
+					attributes.add(FileAttributeType.COMPRESSED_SIZE_ATTR, Long.valueOf(size));
+					break;
 				case CBFSConstants.CompressionAlgorithm.LZ4:
 					attributes.add("Compression Type", "LZ4");
 					attributes.add(FileAttributeType.COMPRESSED_SIZE_ATTR, Long.valueOf(size));

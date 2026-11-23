@@ -30,7 +30,7 @@ import ghidra.formats.gfilesystem.fileinfo.FileAttributes;
 /**
  * UEFIFile implementation for the contents of a raw FFS file.
  */
-public class FFSRawFile implements UEFIFile {
+public final class FFSRawFile implements UEFIFile {
 	private final long base;
 	private final long length;
 	private final ByteProvider provider;
@@ -89,6 +89,7 @@ public class FFSRawFile implements UEFIFile {
 	 *
 	 * @return FileAttributes for the current GUID-defined section
 	 */
+	@Override
 	public FileAttributes getFileAttributes() {
 		FileAttributes attributes = new FileAttributes();
 		attributes.add(FileAttributeType.SIZE_ATTR, Long.valueOf(length));

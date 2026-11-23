@@ -103,13 +103,44 @@ task cleanLibraries(type: Delete) {
 
 clean.dependsOn "cleanLibraries"
 
-// Synthetic binary regression checks run without the Ghidra GUI.
-tasks.register("verifyFfsParsing", JavaExec) {
-	group = "verification"
-	description = "Validate normal, extended and malformed UEFI section headers"
-	dependsOn tasks.named("testClasses")
-	classpath = sourceSets.test.runtimeClasspath
-	mainClass = "firmware.uefi_fv.FFSSectionParsingTest"
+// Java correctness and maintainability checks. PMD runs independently of packaging.
+apply plugin: 'pmd'
+
+repositories {
+	mavenCentral()
 }
 
-buildExtension.dependsOn "verifyFfsParsing"
+pmd {
+	toolVersion = '7.29.0'
+	ruleSets = []
+	ruleSetFiles = files('config/pmd/quality.xml')
+	ignoreFailures = false
+}
+
+tasks.named('buildExtension') {
+	dependsOn tasks.named('check')
+}
+
+
+// Run genuine JUnit regression tests as part of Gradle's check lifecycle.
+dependencies {
+	testImplementation platform('org.junit:junit-bom:6.1.3')
+	testImplementation 'org.junit.jupiter:junit-jupiter'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	// Provide the actual Gradle JVM modules to PMD rather than relying on its fallback.
+	pmdAux files(new File(System.getProperty('java.home'), 'lib/jrt-fs.jar'))
+}
+
+tasks.named('test', Test) {
+	useJUnitPlatform()
+}
+
+// Fail on portable compiler diagnostics that are actionable in extension source.
+// Ghidra lifecycles store filesystem references during construction, and native JNI loading
+// necessarily calls restricted System.load; neither category warrants a release blocker.
+tasks.withType(JavaCompile).configureEach {
+	options.compilerArgs.addAll([
+		'-Xlint:cast,deprecation,dep-ann,divzero,empty,fallthrough,finally,overloads,overrides,rawtypes,removal,serial,static,try,unchecked,varargs',
+		'-Werror'
+	])
+}

@@ -38,7 +38,7 @@ import ghidra.formats.gfilesystem.fileinfo.FileAttributes;
  *
  * This header follows the common section header. See FFSSection for additional information.
  */
-public class FFSVersionSection extends FFSSection {
+public final class FFSVersionSection extends FFSSection {
 	// Original header fields
 	private final short buildNumber;
 	private final String versionString;
@@ -109,6 +109,7 @@ public class FFSVersionSection extends FFSSection {
 	 *
 	 * @return FileAttributes for the current version section
 	 */
+	@Override
 	public FileAttributes getFileAttributes() {
 		FileAttributes attributes = super.getFileAttributes();
 		attributes.add("Version String", versionString);

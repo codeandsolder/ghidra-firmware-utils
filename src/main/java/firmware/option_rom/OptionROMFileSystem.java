@@ -19,8 +19,14 @@ package firmware.option_rom;
 import java.io.IOException;
 import java.util.List;
 
-import ghidra.app.util.bin.*;
-import ghidra.formats.gfilesystem.*;
+import ghidra.app.util.bin.BinaryReader;
+import ghidra.app.util.bin.ByteProvider;
+import ghidra.app.util.bin.ByteProviderWrapper;
+import ghidra.formats.gfilesystem.FSRLRoot;
+import ghidra.formats.gfilesystem.FileSystemIndexHelper;
+import ghidra.formats.gfilesystem.FileSystemRefManager;
+import ghidra.formats.gfilesystem.GFile;
+import ghidra.formats.gfilesystem.GFileSystem;
 import ghidra.formats.gfilesystem.annotations.FileSystemInfo;
 import ghidra.formats.gfilesystem.fileinfo.FileAttributes;
 import ghidra.util.task.TaskMonitor;

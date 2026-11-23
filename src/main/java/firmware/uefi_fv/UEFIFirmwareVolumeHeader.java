@@ -87,6 +87,7 @@ import ghidra.util.task.TaskMonitor;
  * See UFSIFFSFile and UEFIFFSv3File for information regarding the FFS file header fields.
  */
 public class UEFIFirmwareVolumeHeader implements UEFIFile {
+	private static final String INVALID_FV_HEADER = "Not a valid UEFI FV Header";
 
 	/**
 	 * Finds the position of the next UEFIFirmwareVolumeHeader.
@@ -175,14 +176,14 @@ public class UEFIFirmwareVolumeHeader implements UEFIFile {
 
 		signature = reader.readNextInt();
 		if (signature != UEFIFirmwareVolumeConstants.UEFI_FV_SIGNATURE_LE) {
-			throw new IOException("Not a valid UEFI FV Header");
+			throw new IOException(INVALID_FV_HEADER);
 		}
 
 		attributes = reader.readNextInt();
 		headerSize = reader.readNextUnsignedShort();
 		if (headerSize < UEFIFirmwareVolumeConstants.UEFI_FV_HEADER_MIN_SIZE || headerSize > size ||
 				headerSize % 2 != 0) {
-			throw new IOException("Not a valid UEFI FV Header");
+			throw new IOException(INVALID_FV_HEADER);
 		}
 
 		checksum = reader.readNextShort();
@@ -191,14 +192,14 @@ public class UEFIFirmwareVolumeHeader implements UEFIFile {
 				UEFIFirmwareVolumeConstants.UEFI_FV_HEADER_MIN_SIZE ||
 				extendedHeaderOffset > headerSize -
 				UEFIFirmwareVolumeConstants.UEFI_FV_EXT_HEADER_SIZE)) {
-			throw new IOException("Not a valid UEFI FV Header");
+			throw new IOException(INVALID_FV_HEADER);
 		}
 
 		// Skip the Reserved field.
 		reader.setPointerIndex(reader.getPointerIndex() + 1);
 		revision = reader.readNextByte();
 		if (revision != 1 && revision != 2) {
-			throw new IOException("Not a valid UEFI FV Header");
+			throw new IOException(INVALID_FV_HEADER);
 		}
 
 		// Read the extended header fields (if present).
@@ -209,22 +210,9 @@ public class UEFIFirmwareVolumeHeader implements UEFIFile {
 			extendedHeaderSize = reader.readNextInt();
 			if (extendedHeaderSize < UEFIFirmwareVolumeConstants.UEFI_FV_EXT_HEADER_SIZE ||
 					extendedHeaderSize > headerSize - extendedHeaderOffset) {
-				throw new IOException("Not a valid UEFI FV Header");
+				throw new IOException(INVALID_FV_HEADER);
 			}
 
-		}
-
-		// Retrieve the current volume's alignment.
-		int alignment = 8;
-		if (revision == 1) {
-			alignment = 1 << ((attributes & UEFIFirmwareVolumeConstants.Attributes.ALIGNMENT));
-		}
-		else if (revision == 2) {
-			alignment = 1 << ((attributes & UEFIFirmwareVolumeConstants.AttributesV2.ALIGNMENT) >> 16);
-		}
-
-		if (alignment < 8) {
-			alignment = 8;
 		}
 
 		// Calculate the checksum.
@@ -302,6 +290,7 @@ public class UEFIFirmwareVolumeHeader implements UEFIFile {
 	 *
 	 * @return FileAttributes for the current FFS file
 	 */
+	@Override
 	public FileAttributes getFileAttributes() {
 		FileAttributes attributes = new FileAttributes();
 		attributes.add(FileAttributeType.NAME_ATTR, getName());

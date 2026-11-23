@@ -16,7 +16,7 @@
 
 package firmware.fmap;
 
-import java.util.Formatter;
+import java.util.StringJoiner;
 
 /**
  * Various Flash Map (FMAP) constants.
@@ -36,20 +36,20 @@ public final class FlashMapConstants {
 		public static final byte PRESERVE = 1 << 3;
 
 		public static String toString(short flags) {
-			Formatter formatter = new Formatter();
-			if (flags == 0) {
-				formatter.format("None ");
-			} else if ((flags & STATIC) != 0) {
-				formatter.format("Static ");
-			} else if ((flags & COMPRESSED) != 0) {
-				formatter.format("Compressed ");
-			} else if ((flags & READ_ONLY) != 0) {
-				formatter.format("Read-only ");
-			} else if ((flags & PRESERVE) != 0) {
-				formatter.format("Preserved ");
+			StringJoiner names = new StringJoiner(" ");
+			if ((flags & STATIC) != 0) {
+				names.add("Static");
 			}
-
-			return formatter.toString();
+			if ((flags & COMPRESSED) != 0) {
+				names.add("Compressed");
+			}
+			if ((flags & READ_ONLY) != 0) {
+				names.add("Read-only");
+			}
+			if ((flags & PRESERVE) != 0) {
+				names.add("Preserved");
+			}
+			return names.length() == 0 ? "None" : names.toString();
 		}
 	}
 }

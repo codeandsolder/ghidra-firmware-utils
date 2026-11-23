@@ -30,7 +30,8 @@ This was accepted as a [coreboot project for GSoC 2019][2].
  - Locates and defines global copies of UEFI table pointers (gBS/gRT/gST/etc)
 
 ## Building & Installation
-JDK 21 (or newer) and Ghidra 12.0 (or newer) are required.
+Ghidra 12.0 requires JDK 21 or newer; Ghidra 12.2 builds require JDK 25.
+Use a JDK compatible with the selected Ghidra release.
 
 Ghidra's standard Gradle build system is used. Set the `GHIDRA_INSTALL_DIR`
 environment variable before building, or set it as a Gradle property (useful
@@ -60,6 +61,25 @@ For proper functionality, the plugin should be built with the same JRE used
 by your Ghidra installation. If you have multiple Java runtime environments
 installed, select the correct JRE by setting the `JAVA_HOME` environment
 variable before building.
+
+
+## Development and Java quality checks
+
+Run the normal Gradle verification lifecycle before committing Java changes:
+
+```bash
+./gradlew --no-daemon -PGHIDRA_INSTALL_DIR=/path/to/ghidra check
+```
+
+`check` runs the JUnit 6 regression tests, PMD 7 static analysis (`config/pmd/quality.xml`),
+and javac's portable lint checks with warnings treated as errors. The PMD rules
+cover parser construction safety, resource ownership, switch fall-through,
+imports, unused assignments, and other correctness/maintainability problems.
+There is no accepted PMD violation baseline.
+
+`buildExtension` also depends on `check`, and CI runs the quality gate during
+the Linux native build and again before packaging the multi-platform extension.
+All test fixtures are synthetic and require no firmware sample or Ghidra GUI.
 
 ## Usage
 ### PCI option ROM loader

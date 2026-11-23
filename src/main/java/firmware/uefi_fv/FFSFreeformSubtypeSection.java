@@ -41,7 +41,7 @@ import ghidra.formats.gfilesystem.fileinfo.FileAttributes;
  *
  * This header follows the common section header. See FFSSection for additional information.
  */
-public class FFSFreeformSubtypeSection extends FFSSection {
+public final class FFSFreeformSubtypeSection extends FFSSection {
 	// Original header fields
 	private final UUID subTypeGuid;
 
@@ -112,6 +112,7 @@ public class FFSFreeformSubtypeSection extends FFSSection {
 	 *
 	 * @return FileAttributes for the current freeform section
 	 */
+	@Override
 	public FileAttributes getFileAttributes() {
 		FileAttributes attributes = super.getFileAttributes();
 		attributes.add("Subtype GUID", subTypeGuid.toString());
