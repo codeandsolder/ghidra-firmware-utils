@@ -16,10 +16,8 @@
 
 package firmware.option_rom;
 
-import ghidra.app.util.Option;
 import ghidra.app.util.bin.BinaryReader;
 import ghidra.app.util.bin.ByteProvider;
-import ghidra.app.util.importer.MessageLog;
 import ghidra.app.util.opinion.AbstractLibrarySupportLoader;
 import ghidra.app.util.opinion.Loader.ImporterSettings;
 import ghidra.app.util.opinion.LoadSpec;
@@ -28,7 +26,6 @@ import ghidra.program.model.address.Address;
 import ghidra.program.model.lang.LanguageCompilerSpecPair;
 import ghidra.program.model.listing.Program;
 import ghidra.util.Msg;
-import ghidra.util.task.TaskMonitor;
 
 import java.io.IOException;
 import java.io.InputStream;

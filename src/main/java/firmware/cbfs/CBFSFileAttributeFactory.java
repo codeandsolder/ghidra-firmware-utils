@@ -24,7 +24,7 @@ import java.io.IOException;
 /**
  * Factory for constructing the correct CBFS file attribute based off the attribute tag field.
  */
-public class CBFSFileAttributeFactory {
+public final class CBFSFileAttributeFactory {
 	private CBFSFileAttributeFactory() {}
 
 	/**

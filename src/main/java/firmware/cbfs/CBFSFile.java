@@ -106,7 +106,7 @@ public class CBFSFile {
 	 */
 	public ByteProvider getByteProvider() throws IOException, CancelledException {
 		// Extract the file if compression is used (specified in a compression attribute).
-		if (attribute != null && attribute instanceof CBFSCompressionAttribute) {
+		if (attribute instanceof CBFSCompressionAttribute) {
 			int compressionType = ((CBFSCompressionAttribute) attribute).getCompressionType();
 			InputStream source = new ByteArrayInputStream(data);
 			try (InputStream decompressed = switch (compressionType) {
@@ -174,7 +174,7 @@ public class CBFSFile {
 		FileAttributes attributes = new FileAttributes();
 		attributes.add(FileAttributeType.NAME_ATTR, name);
 		attributes.add("File Type", CBFSConstants.FileType.toString(type));
-		if (attribute != null && attribute instanceof CBFSCompressionAttribute) {
+		if (attribute instanceof CBFSCompressionAttribute) {
 			switch (((CBFSCompressionAttribute) attribute).getCompressionType()) {
 				case CBFSConstants.CompressionAlgorithm.LZMA:
 					attributes.add("Compression Type", "LZMA");

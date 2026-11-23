@@ -22,7 +22,7 @@ import ghidra.formats.gfilesystem.fileinfo.FileAttributes;
 /**
  * Various FileAttributes utilities.
  */
-public class FileAttributeUtils {
+public final class FileAttributeUtils {
 	private FileAttributeUtils() {}
 
 	/**

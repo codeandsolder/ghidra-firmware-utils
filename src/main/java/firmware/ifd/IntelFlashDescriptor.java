@@ -238,13 +238,11 @@ public class IntelFlashDescriptor {
 		reader.setPointerIndex(headerOffset);
 		regions.add(new IntelFlashRegion(reader, IntelFlashDescriptorConstants.DESCRIPTOR_SIZE,
 				IntelFlashDescriptorConstants.FlashRegionType.FLASH_DESCRIPTOR));
-		if ((biosLimit + 1 - biosBase) * 0x1000L == reader.length() - headerOffset) {
-			// For some older Gigabyte systems, the BIOS region in the flash descriptor spans the
-			// whole chip. Manually calculate the BIOS region base address using the ME region's
-			// limit address (which should be correct).
-			if (meLimit != 0) {
-				biosBase = meLimit + 1;
-			}
+		// Some older Gigabyte systems report a BIOS region spanning the whole chip.
+		// In that case, prefer the management engine region limit when available.
+		if ((biosLimit + 1 - biosBase) * 0x1000L == reader.length() - headerOffset &&
+				meLimit != 0) {
+			biosBase = meLimit + 1;
 		}
 
 		addRegion(reader, biosBase, biosLimit, IntelFlashDescriptorConstants.FlashRegionType.BIOS);

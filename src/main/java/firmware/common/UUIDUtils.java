@@ -32,7 +32,7 @@ import java.util.UUID;
 /**
  * Various UUID utilities.
  */
-public class UUIDUtils {
+public final class UUIDUtils {
 	private static final Map<UUID, String> guidMap = new HashMap<>();
 
 	static {

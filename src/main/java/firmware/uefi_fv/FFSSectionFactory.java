@@ -26,7 +26,7 @@ import ghidra.formats.gfilesystem.GFile;
  * Factory for constructing the correct FFSSection based off the type field in the common FFS
  * section header.
  */
-public class FFSSectionFactory {
+public final class FFSSectionFactory {
 	private FFSSectionFactory() {}
 
 	/**

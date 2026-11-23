@@ -76,7 +76,8 @@ checks with warnings treated as errors. `buildExtension` depends on `check`.
 
 CI also calls the [shared Java quality module](https://github.com/codeandsolder/ci-workflows/blob/main/.github/workflows/java-quality.yml),
 which detects all Git-tracked Java sources (including `ghidra_scripts`) and
-enforces the centrally maintained PMD rules. The rules and PMD dependency are
+enforces the centrally maintained **228-rule strict PMD quality gate** with
+zero accepted warnings. The rules and PMD dependency are
 defined only in shared CI, rather than duplicated in this repository.
 All test fixtures are synthetic and require no firmware sample or Ghidra GUI.
 

@@ -17,7 +17,6 @@
 package firmware.uefi_fv;
 
 import java.io.IOException;
-import java.util.Formatter;
 import java.util.UUID;
 
 import firmware.common.UUIDUtils;

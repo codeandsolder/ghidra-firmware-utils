@@ -18,10 +18,8 @@ package firmware.uefi_fv;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.util.Formatter;
 
 import ghidra.app.util.bin.ByteProvider;
-import ghidra.formats.gfilesystem.fileinfo.FileAttributeType;
 import ghidra.formats.gfilesystem.fileinfo.FileAttributes;
 import org.apache.commons.compress.compressors.lzma.LZMACompressorInputStream;
 

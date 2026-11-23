@@ -17,7 +17,6 @@
 package firmware.uefi_fv;
 
 import java.io.IOException;
-import java.util.Formatter;
 
 import ghidra.app.util.bin.BinaryReader;
 import ghidra.app.util.bin.ByteProvider;
@@ -61,8 +60,8 @@ public abstract class FFSSection implements UEFIFile {
 				reader.getByteProvider().length() - baseIndex);
 		byte[] sizeBytes = reader.readNextByteArray(3);
 		type = reader.readNextByte();
-		hasExtendedSize = ((sizeBytes[0] & 0xff) == 0xff &&
-				(sizeBytes[1] & 0xff) == 0xff && (sizeBytes[2] & 0xff) == 0xff);
+		hasExtendedSize = (sizeBytes[0] & 0xff) == 0xff &&
+				(sizeBytes[1] & 0xff) == 0xff && (sizeBytes[2] & 0xff) == 0xff;
 		if (hasExtendedSize) {
 			reader.readNextUnsignedInt();
 		}
