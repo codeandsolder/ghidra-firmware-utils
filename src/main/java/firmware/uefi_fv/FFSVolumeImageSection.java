@@ -46,7 +46,8 @@ public class FFSVolumeImageSection extends FFSSection {
 		GFile fileImpl = fsih.storeFileWithParent(getName(), parent, -1, true, -1, this);
 
 		// Add the nested firmware volume to the FS.
-		new UEFIFirmwareVolumeHeader(reader, fsih, fileImpl, true);
+		new UEFIFirmwareVolumeHeader(reader, fsih, fileImpl, true,
+				reader.getPointerIndex() + length());
 	}
 
 	/**

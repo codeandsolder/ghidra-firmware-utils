@@ -25,7 +25,6 @@ import ghidra.formats.gfilesystem.FileSystemIndexHelper;
 import ghidra.formats.gfilesystem.GFile;
 import ghidra.formats.gfilesystem.fileinfo.FileAttributeType;
 import ghidra.formats.gfilesystem.fileinfo.FileAttributes;
-import ghidra.util.Msg;
 
 /**
  * Parser for UEFI Firmware File System (FFS) files, which have the following header:
@@ -72,8 +71,12 @@ public class UEFIFFSFile implements UEFIFile {
 	 * @param fsih   the specified {@link FileSystemIndexHelper} that handles files
 	 * @param parent the parent directory in the specified FileSystemIndexHelper
 	 */
-	public UEFIFFSFile(BinaryReader reader, FileSystemIndexHelper<UEFIFile> fsih, GFile parent) throws IOException {
+	public UEFIFFSFile(BinaryReader reader, FileSystemIndexHelper<UEFIFile> fsih,
+			GFile parent, long volumeEnd) throws IOException {
 		baseIndex = reader.getPointerIndex();
+		if (volumeEnd < baseIndex || volumeEnd - baseIndex < UEFIFFSConstants.FFS_HEADER_SIZE) {
+			throw new IOException("Truncated FFS file header");
+		}
 		nameGuid = UUIDUtils.fromBinaryReader(reader);
 		headerChecksum = reader.readNextByte();
 		fileChecksum = reader.readNextByte();
@@ -81,90 +84,112 @@ public class UEFIFFSFile implements UEFIFile {
 		attributes = reader.readNextByte();
 
 		byte[] sizeBytes = reader.readNextByteArray(3);
-		size = ((sizeBytes[2] & 0xFF) << 16 | (sizeBytes[1] & 0xFF) << 8 | sizeBytes[0] & 0xFF);
-		if (size < UEFIFFSConstants.FFS_HEADER_SIZE) {
-			throw new IOException("Not a valid FFS file");
-		}
-
+		size = (sizeBytes[0] & 0xffL) | ((sizeBytes[1] & 0xffL) << 8) |
+				((sizeBytes[2] & 0xffL) << 16);
 		state = reader.readNextByte();
 
-		// Ignore padding files.
+		int headerLength = UEFIFFSConstants.FFS_HEADER_SIZE;
+		if ((attributes & UEFIFFSConstants.Attributes.LARGE_FILE) != 0) {
+			if (size != 0xffffff || volumeEnd - reader.getPointerIndex() < Long.BYTES) {
+				throw new IOException("Invalid FFS large-file header");
+			}
+			size = reader.readNextLong();
+			headerLength += Long.BYTES;
+		}
+		else if (size == 0xffffff) {
+			throw new IOException("Extended FFS file size without LARGE_FILE attribute");
+		}
+		if (size < headerLength || size > volumeEnd - baseIndex) {
+			throw new IOException("FFS file extends outside firmware volume");
+		}
+		long fileEnd = baseIndex + size;
+
+		// Padding files still use the normal (or large) file-size encoding.
 		if (type == UEFIFFSConstants.FileType.PAD) {
-			Msg.debug(this, "Skipping padding file");
-			reader.setPointerIndex(baseIndex + size);
+			reader.setPointerIndex(fileEnd);
 			return;
 		}
-
-		// Ignore obviously invalid sections (free space).
 		if (nameGuid.equals(UUID.fromString("ffffffff-ffff-ffff-ffff-ffffffffffff")) ||
 				nameGuid.equals(UUID.fromString("00000000-0000-0000-0000-000000000000"))) {
 			throw new IOException("Not a valid FFS file");
 		}
 
-		// Read the extended size for FFSv3 files.
-		if ((attributes & UEFIFFSConstants.Attributes.LARGE_FILE) != 0) {
-			size = reader.readNextLong();
-		}
-
-		// Check if there is a UI section containing a name for this file.
-		// This has to be done before the GFile for this FFS file is created, as the GFile's name
-		// cannot be changed after it is constructed.
 		if (type != UEFIFFSConstants.FileType.RAW) {
-			long currentIndex = reader.getPointerIndex();
-			long remainingLength = size - UEFIFFSConstants.FFS_HEADER_SIZE;
-			while (remainingLength > UEFIFFSConstants.FFS_SECTION_HEADER_SIZE) {
-				FFSSection section = FFSSectionFactory.parseSection(reader);
-				if (section.getType() == UEFIFFSConstants.SectionType.USER_INTERFACE) {
-					uiName = ((FFSUISection) section).getText();
-					break;
-				}
-
-				long unalignedIndex = reader.getPointerIndex();
-				reader.align(4);
-				long alignedIndex = reader.getPointerIndex();
-				remainingLength -= section.getTotalLength() + (alignedIndex - unalignedIndex);
-			}
-
-			reader.setPointerIndex(currentIndex);
+			long payloadStart = reader.getPointerIndex();
+			scanSections(reader, fileEnd, fsih, null, true);
+			reader.setPointerIndex(payloadStart);
 		}
 
-		// Add this file to the current FS.
-		GFile fileImpl = fsih.storeFileWithParent(UEFIFirmwareVolumeFileSystem.getFSFormattedName(this, parent, fsih),
+		GFile fileImpl = fsih.storeFileWithParent(
+				UEFIFirmwareVolumeFileSystem.getFSFormattedName(this, parent, fsih),
 				parent, -1, true, -1, this);
 
-		long remainingLength = size - UEFIFFSConstants.FFS_HEADER_SIZE;
 		if (type == UEFIFFSConstants.FileType.RAW) {
-			long fvEndIndex = reader.getPointerIndex();
-			long ffsEndIndex = reader.getPointerIndex() + remainingLength;
-			while (remainingLength > UEFIFFSConstants.FFS_SECTION_HEADER_SIZE) {
-				// Raw sections may contain nested firmware volumes.
-				long currentIndex = reader.getPointerIndex();
-				try {
-					UEFIFirmwareVolumeHeader fvh = new UEFIFirmwareVolumeHeader(reader, fsih, fileImpl, true);
-					remainingLength -= fvh.length();
-					fvEndIndex += fvh.length();
-				} catch (IOException e) {
-					reader.setPointerIndex(currentIndex + 1);
-					remainingLength--;
-				}
-			}
+			parseRawPayload(reader, fileEnd, fsih, fileImpl);
+		}
+		else {
+			scanSections(reader, fileEnd, fsih, fileImpl, false);
+		}
+		reader.setPointerIndex(fileEnd);
+	}
 
-			if (fvEndIndex < ffsEndIndex) {
-				reader.setPointerIndex(fvEndIndex);
-				new FFSRawFile(reader, (int) (ffsEndIndex - fvEndIndex), fsih, fileImpl);
+	/**
+	 * Walk FFS sections using their declared sizes rather than trusting arbitrary parser cursor
+	 * movement. Both the UI-name discovery pass and the indexing pass use identical boundaries.
+	 */
+	private void scanSections(BinaryReader reader, long fileEnd,
+			FileSystemIndexHelper<UEFIFile> fsih, GFile parent, boolean nameOnly)
+			throws IOException {
+		while (fileEnd - reader.getPointerIndex() >= UEFIFFSConstants.FFS_SECTION_HEADER_SIZE) {
+			long sectionStart = reader.getPointerIndex();
+			long declared = FFSSection.readValidatedTotalLength(reader, sectionStart,
+					fileEnd - sectionStart);
+			FFSSection section = nameOnly
+					? FFSSectionFactory.parseSection(reader)
+					: FFSSectionFactory.parseSection(reader, fsih, parent);
+			if (reader.getPointerIndex() > sectionStart + declared) {
+				throw new IOException("FFS section parser exceeded its declared size");
 			}
-		} else {
-			// Parse and add each section to the FS.
-			while (remainingLength > UEFIFFSConstants.FFS_SECTION_HEADER_SIZE) {
-				FFSSection section = FFSSectionFactory.parseSection(reader, fsih, fileImpl);
-				// FFS sections are aligned to a 4 byte boundary.
-				long unalignedIndex = reader.getPointerIndex();
-				reader.align(4);
-				long alignedIndex = reader.getPointerIndex();
-				remainingLength -= section.getTotalLength() + (alignedIndex - unalignedIndex);
+			if (nameOnly && section instanceof FFSUISection ui) {
+				uiName = ui.getText();
+				return;
 			}
+			long next = (sectionStart + declared + 3) & ~3L;
+			reader.setPointerIndex(Math.min(next, fileEnd));
 		}
 	}
+
+	/**
+	 * Preserve raw bytes around embedded firmware volumes, not just the suffix after the last
+	 * recognized volume. Failed candidates advance by one byte without losing preceding data.
+	 */
+	private static void parseRawPayload(BinaryReader reader, long fileEnd,
+			FileSystemIndexHelper<UEFIFile> fsih, GFile parent) throws IOException {
+		long rawStart = reader.getPointerIndex();
+		long scan = rawStart;
+		while (fileEnd - scan >= UEFIFirmwareVolumeConstants.UEFI_FV_HEADER_MIN_SIZE) {
+			reader.setPointerIndex(scan);
+			try {
+				// A nested volume parser must not be allowed to cross this file boundary.
+				UEFIFirmwareVolumeHeader header =
+						new UEFIFirmwareVolumeHeader(reader, fsih, parent, true, fileEnd);
+				if (scan > rawStart) {
+					reader.setPointerIndex(rawStart);
+					new FFSRawFile(reader, scan - rawStart, fsih, parent);
+				}
+				scan += header.length();
+				rawStart = scan;
+			}
+			catch (IOException e) {
+				scan++;
+			}
+		}
+		if (rawStart < fileEnd) {
+			reader.setPointerIndex(rawStart);
+			new FFSRawFile(reader, fileEnd - rawStart, fsih, parent);
+		}
+	}
+
 
 	/**
 	 * Returns the GUID for the current FFS file.

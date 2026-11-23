@@ -43,11 +43,11 @@ import ghidra.formats.gfilesystem.fileinfo.FileAttributes;
  */
 public abstract class FFSSection implements UEFIFile {
 	// Original header fields
-	private int size;
+	private final long size;
 	private final byte type;
 
 	private final long baseIndex;
-	private boolean hasExtendedSize;
+	private final boolean hasExtendedSize;
 	private final ByteProvider provider;
 
 	/**
@@ -57,17 +57,59 @@ public abstract class FFSSection implements UEFIFile {
 	 */
 	public FFSSection(BinaryReader reader) throws IOException {
 		baseIndex = reader.getPointerIndex();
+		long totalLength = readValidatedTotalLength(reader, baseIndex,
+				reader.getByteProvider().length() - baseIndex);
 		byte[] sizeBytes = reader.readNextByteArray(3);
-		size = ((sizeBytes[2] & 0xFF) << 16 | (sizeBytes[1] & 0xFF) << 8 | sizeBytes[0] & 0xFF);
 		type = reader.readNextByte();
-
-		if (size == 0xFFFFFF) {
-			hasExtendedSize = true;
-			size = reader.readNextInt() - 4;
+		hasExtendedSize = ((sizeBytes[0] & 0xff) == 0xff &&
+				(sizeBytes[1] & 0xff) == 0xff && (sizeBytes[2] & 0xff) == 0xff);
+		if (hasExtendedSize) {
+			reader.readNextUnsignedInt();
 		}
+		size = totalLength - getCommonHeaderLength();
+		// Never dispatch to an incompletely initialized subclass from this constructor.
+		provider = new ByteProviderWrapper(reader.getByteProvider(), reader.getPointerIndex(), size);
+	}
 
-		size -= UEFIFFSConstants.FFS_SECTION_HEADER_SIZE;
-		provider = new ByteProviderWrapper(reader.getByteProvider(), reader.getPointerIndex(), length());
+	/**
+	 * Validate both normal and extended section sizes against an enclosing region.
+	 * Shared by the common constructor and all section traversals.
+	 */
+	static long readValidatedTotalLength(BinaryReader reader, long index, long remaining)
+			throws IOException {
+		if (remaining < UEFIFFSConstants.FFS_SECTION_HEADER_SIZE) {
+			throw new IOException("Truncated FFS section header");
+		}
+		byte[] bytes = reader.getByteProvider().readBytes(index,
+				UEFIFFSConstants.FFS_SECTION_SIZE_LENGTH);
+		long total = (bytes[0] & 0xffL) | ((bytes[1] & 0xffL) << 8) |
+				((bytes[2] & 0xffL) << 16);
+		long header = UEFIFFSConstants.FFS_SECTION_HEADER_SIZE;
+		if (total == UEFIFFSConstants.FFS_SECTION2_IS_USED) {
+			header += Integer.BYTES;
+			if (remaining < header) {
+				throw new IOException("Truncated extended FFS section header");
+			}
+			total = Integer.toUnsignedLong(
+					reader.readInt(index + UEFIFFSConstants.FFS_SECTION_HEADER_SIZE));
+		}
+		if (total < header || total > remaining) {
+			throw new IOException(String.format(
+					"Invalid FFS section size %d, expected %d..%d", total, header, remaining));
+		}
+		return total;
+	}
+
+	static int checkedByteArrayLength(long length) throws IOException {
+		if (length < 0 || length > Integer.MAX_VALUE) {
+			throw new IOException("FFS data exceeds the maximum Java array size");
+		}
+		return (int) length;
+	}
+
+	private int getCommonHeaderLength() {
+		return UEFIFFSConstants.FFS_SECTION_HEADER_SIZE +
+				(hasExtendedSize ? Integer.BYTES : 0);
 	}
 
 	/**
@@ -86,12 +128,7 @@ public abstract class FFSSection implements UEFIFile {
 	 * @return the length of the header for the current FFS section
 	 */
 	public int getHeaderLength() {
-		int headerLength = UEFIFFSConstants.FFS_SECTION_HEADER_SIZE;
-		if (hasExtendedSize) {
-			headerLength += 4;
-		}
-
-		return headerLength;
+		return getCommonHeaderLength();
 	}
 
 	/**
@@ -99,8 +136,8 @@ public abstract class FFSSection implements UEFIFile {
 	 *
 	 * @return the total length of the current FFS section
 	 */
-	public int getTotalLength() {
-		return getHeaderLength() + (int) length();
+	public long getTotalLength() {
+		return getHeaderLength() + length();
 	}
 
 	/**

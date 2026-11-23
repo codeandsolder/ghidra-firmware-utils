@@ -108,7 +108,7 @@ public class FFSGUIDDefinedSection extends FFSSection {
 			// STANDARD_COMPRESSION indicates that either the EFI Compression Algorithm or the
 			// Tiano Compression Algorithm was used. Attempt to extract the compressed data with
 			// both decompressors.
-			byte[] compressedData = reader.readNextByteArray((int) length());
+			byte[] compressedData = reader.readNextByteArray(FFSSection.checkedByteArrayLength(length()));
 			uncompressedData = EFIDecompressor.decompress(compressedData);
 			if (uncompressedData == null) {
 				uncompressedData = TianoDecompressor.decompress(compressedData);
@@ -127,8 +127,8 @@ public class FFSGUIDDefinedSection extends FFSSection {
 			BoundedInputStream boundedStream = new BoundedInputStream(
 					reader.getByteProvider().getInputStream(reader.getPointerIndex()), length());
 
-			try {
-				LZMACompressorInputStream inputStream = new LZMACompressorInputStream(boundedStream);
+			try (LZMACompressorInputStream inputStream =
+					new LZMACompressorInputStream(boundedStream)) {
 				uncompressedData = inputStream.readAllBytes();
 
 				// Parse the uncompressed section.
@@ -184,7 +184,7 @@ public class FFSGUIDDefinedSection extends FFSSection {
 			reader.setPointerIndex(baseIndex + dataOffset);
 
 			// Read the current GUID-defined section and validate the CRC-32 checksum.
-			uncompressedData = reader.readNextByteArray((int) length());
+			uncompressedData = reader.readNextByteArray(FFSSection.checkedByteArrayLength(length()));
 			CRC32 crc32 = new CRC32();
 			crc32.update(uncompressedData);
 			long checksum = crc32.getValue();
@@ -201,7 +201,7 @@ public class FFSGUIDDefinedSection extends FFSSection {
 				UEFIFFSConstants.DefinedSectionAttributes.PROCESSING_REQUIRED) != 0) {
 			// The payload cannot be interpreted without a handler for this GUID. Keep it opaque
 			// instead of treating compressed/encrypted bytes as nested FFS sections.
-			new FFSRawFile(reader, (int) length(), fsih, fileImpl);
+			new FFSRawFile(reader, length(), fsih, fileImpl);
 		} else {
 			// No additional processing is required, so parse the payload as nested sections.
 			parseNestedSections(reader, length(), fsih, fileImpl);
@@ -219,7 +219,7 @@ public class FFSGUIDDefinedSection extends FFSSection {
 	 * @param fsih   the specified {@link FileSystemIndexHelper} that handles files
 	 * @param parent the parent directory in the specified FileSystemIndexHelper
 	 */
-	private static void parseNestedSections(BinaryReader reader, long length,
+	static void parseNestedSections(BinaryReader reader, long length,
 			FileSystemIndexHelper<UEFIFile> fsih, GFile parent) throws IOException {
 		long baseIndex = reader.getPointerIndex();
 		long maxIndex = baseIndex + length;
@@ -227,7 +227,7 @@ public class FFSGUIDDefinedSection extends FFSSection {
 		while (currentIndex < maxIndex) {
 			long remaining = maxIndex - currentIndex;
 			try {
-				long sectionLength = getNestedSectionLength(reader, currentIndex, remaining);
+				long sectionLength = FFSSection.readValidatedTotalLength(reader, currentIndex, remaining);
 				long sectionEnd = currentIndex + sectionLength;
 
 				FFSSectionFactory.parseSection(reader, fsih, parent);
@@ -241,7 +241,7 @@ public class FFSGUIDDefinedSection extends FFSSection {
 				reader.setPointerIndex(sectionEnd);
 			} catch (IOException e) {
 				reader.setPointerIndex(currentIndex);
-				new FFSRawFile(reader, (int) remaining, fsih, parent);
+				new FFSRawFile(reader, remaining, fsih, parent);
 				return;
 			}
 
@@ -249,40 +249,6 @@ public class FFSGUIDDefinedSection extends FFSSection {
 			currentIndex = Math.min(alignedIndex, maxIndex);
 			reader.setPointerIndex(currentIndex);
 		}
-	}
-
-	/**
-	 * Reads and validates the declared total length of a nested FFS section without advancing the
-	 * reader. This prevents a malformed child section from escaping the bounds of its parent.
-	 */
-	private static long getNestedSectionLength(BinaryReader reader, long index, long remaining)
-			throws IOException {
-		if (remaining < UEFIFFSConstants.FFS_SECTION_HEADER_SIZE) {
-			throw new IOException("Nested section is smaller than the common section header");
-		}
-
-		byte[] sizeBytes =
-			reader.getByteProvider().readBytes(index, UEFIFFSConstants.FFS_SECTION_SIZE_LENGTH);
-		long sectionLength =
-			(sizeBytes[0] & 0xffL) | ((sizeBytes[1] & 0xffL) << 8) | ((sizeBytes[2] & 0xffL) << 16);
-		long headerLength = UEFIFFSConstants.FFS_SECTION_HEADER_SIZE;
-
-		if (sectionLength == UEFIFFSConstants.FFS_SECTION2_IS_USED) {
-			headerLength += Integer.BYTES;
-			if (remaining < headerLength) {
-				throw new IOException("Nested extended section is smaller than its header");
-			}
-			sectionLength = Integer.toUnsignedLong(
-				reader.readInt(index + UEFIFFSConstants.FFS_SECTION_HEADER_SIZE));
-		}
-
-		if (sectionLength < headerLength || sectionLength > remaining) {
-			throw new IOException(String.format(
-					"Invalid nested section size: %d, expected %d..%d",
-					sectionLength, headerLength, remaining));
-		}
-
-		return sectionLength;
 	}
 
 	/**

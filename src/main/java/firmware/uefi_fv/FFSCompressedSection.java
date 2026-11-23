@@ -67,10 +67,15 @@ public class FFSCompressedSection extends FFSSection {
 	public FFSCompressedSection(BinaryReader reader, FileSystemIndexHelper<UEFIFile> fsih,
 			GFile parent) throws IOException {
 		super(reader);
+		if (super.length() < 5) {
+			throw new IOException("Truncated FFS compression header");
+		}
 
 		uncompressedSize = reader.readNextInt();
+		int expectedSize = FFSSection.checkedByteArrayLength(Integer.toUnsignedLong(uncompressedSize));
 		compressionType = reader.readNextByte();
-		byte[] compressedData = reader.readNextByteArray((int) length());
+		byte[] compressedData =
+				reader.readNextByteArray(FFSSection.checkedByteArrayLength(length()));
 
 		byte[] uncompressedData;
 		switch (compressionType) {
@@ -93,10 +98,12 @@ public class FFSCompressedSection extends FFSSection {
 				break;
 			case UEFIFFSConstants.CompressionType.CUSTOMIZED_COMPRESSION:
 				// CUSTOMIZED_COMPRESSION indicates that LZMA was used.
-				try {
-					LZMACompressorInputStream inputStream = new LZMACompressorInputStream(
-						new ByteArrayInputStream(compressedData));
-					uncompressedData = inputStream.readAllBytes();
+				try (LZMACompressorInputStream inputStream = new LZMACompressorInputStream(
+						new ByteArrayInputStream(compressedData))) {
+					uncompressedData = inputStream.readNBytes(expectedSize);
+					if (uncompressedData.length != expectedSize || inputStream.read() != -1) {
+						throw new IOException("LZMA output length does not match the section header");
+					}
 				} catch (IOException e) {
 					Msg.error(this, "Failed to extract LZMA compressed section: " +
 							e.getMessage());
@@ -109,12 +116,19 @@ public class FFSCompressedSection extends FFSSection {
 				return;
 		}
 
+		if (Integer.toUnsignedLong(uncompressedSize) != uncompressedData.length) {
+			throw new IOException(String.format(
+					"Compressed FFS section declares %d uncompressed bytes, extracted %d",
+					Integer.toUnsignedLong(uncompressedSize), uncompressedData.length));
+		}
+
 		// Add this section to the FS.
 		GFile fileImpl = fsih.storeFileWithParent(getName(), parent, -1, true, -1, this);
 
-		// Add the uncompressed section to the FS as a file.
+		// One compressed section can contain several aligned child sections.
 		BinaryReader sectionReader = new BinaryReader(new ByteArrayProvider(uncompressedData), true);
-		FFSSection section = FFSSectionFactory.parseSection(sectionReader, fsih, fileImpl);
+		FFSGUIDDefinedSection.parseNestedSections(sectionReader, uncompressedData.length, fsih,
+				fileImpl);
 	}
 
 	/**
@@ -145,7 +159,7 @@ public class FFSCompressedSection extends FFSSection {
 	 */
 	@Override
 	public int getHeaderLength() {
-		return UEFIFFSConstants.FFS_SECTION_HEADER_SIZE + 5;
+		return super.getHeaderLength() + 5;
 	}
 
 	/**
