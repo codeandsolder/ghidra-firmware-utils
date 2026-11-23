@@ -24,7 +24,7 @@ import util.JNILibraryLoader;
 /**
  * Handles the decompression of images compressed with the Tiano Compression Algorithm.
  */
-public class TianoDecompressor {
+public final class TianoDecompressor {
 	static {
 		try {
 			JNILibraryLoader.loadLibrary("efidecompress");

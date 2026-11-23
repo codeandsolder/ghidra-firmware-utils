@@ -60,10 +60,10 @@ import ghidra.util.Msg;
 import ghidra.util.exception.DuplicateNameException;
 import ghidra.util.exception.InvalidInputException;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 
@@ -72,16 +72,6 @@ import java.util.UUID;
  */
 public class UEFIHelper extends GhidraScript {
 	private DataTypeManager uefiTypeManager;
-
-	/**
-	 * Loads the specified file from the plugin's data directory.
-	 *
-	 * @param name the specified filename
-	 */
-	private File loadDataFile(String name) throws IOException {
-		return new File(new File(
-				sourceFile.getParentFile().getParentFile().getFile(true), "data"), name);
-	}
 
 	/**
 	 * Loads the specified data type library and returns a corresponding DataTypeManager.
@@ -240,7 +230,7 @@ public class UEFIHelper extends GhidraScript {
 							defineData(globalAddress, sourceDataType, name, null);
 							printf("%s> - Applied %s data type to 0x%s\n", getScriptName(),
 									destination.getDataType().getName(),
-									globalAddress.toString().toUpperCase());
+									globalAddress.toString().toUpperCase(Locale.ROOT));
 						}
 					}
 				} else {
@@ -349,7 +339,7 @@ public class UEFIHelper extends GhidraScript {
 			entryPoint = createFunction(entryPointAddress, "_ModuleEntryPoint");
 		}
 
-		println("Found entry point function at 0x" + entryPointAddress.toString().toUpperCase());
+		println("Found entry point function at 0x" + entryPointAddress.toString().toUpperCase(Locale.ROOT));
 
 		// TODO: Pick correct entry point signature based off module type (PEI vs DXE, etc)
 		FunctionDefinition entryPointDefinition = (FunctionDefinition) uefiTypeManager.getDataType(
@@ -411,7 +401,7 @@ public class UEFIHelper extends GhidraScript {
 				if (UUIDUtils.dbContains(uuid)) {
 					Address guidAddress = block.getStart().add(index);
 					println("GUID: Found " + UUIDUtils.getName(uuid) + " (" + uuid.toString() +
-							") at 0x" + guidAddress.toString().toUpperCase());
+							") at 0x" + guidAddress.toString().toUpperCase(Locale.ROOT));
 
 					// Apply the EFI_GUID data type for the GUID we found.
 					defineData(guidAddress, efiGuidType, UUIDUtils.getName(uuid),

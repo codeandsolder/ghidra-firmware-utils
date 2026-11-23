@@ -17,7 +17,6 @@
 package firmware.uefi_fv;
 
 import java.io.IOException;
-import java.util.Formatter;
 
 import ghidra.app.util.bin.BinaryReader;
 import ghidra.app.util.bin.ByteProvider;

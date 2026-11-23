@@ -24,7 +24,7 @@ import util.JNILibraryLoader;
 /**
  * Handles the decompression of images compressed with the EFI Compression Algorithm.
  */
-public class EFIDecompressor {
+public final class EFIDecompressor {
 	static {
 		try {
 			JNILibraryLoader.loadLibrary("efidecompress");
