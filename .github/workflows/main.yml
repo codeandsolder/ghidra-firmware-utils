@@ -17,6 +17,9 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  java-quality:
+    uses: codeandsolder/ci-workflows/.github/workflows/java-quality.yml@e688e21a654bd39959e7d8b4cc64f587abfb40ba # main
+
   build-natives:
     strategy:
       matrix:
@@ -51,10 +54,6 @@ jobs:
     - name: Build natives
       run: ./gradlew efidecompressSharedLibrary copyLibraries -PGHIDRA_INSTALL_DIR=${{ env.GHIDRA_INSTALL_DIR }}
 
-    - name: Java quality gate
-      if: matrix.os == 'ubuntu-latest'
-      run: ./gradlew --no-daemon check -PGHIDRA_INSTALL_DIR=${{ env.GHIDRA_INSTALL_DIR }}
-
     - name: Upload natives
       uses: actions/upload-artifact@v4
       with:
@@ -69,7 +68,7 @@ jobs:
         ghidra:
           - "12.0"
 
-    needs: build-natives
+    needs: [build-natives, java-quality]
     runs-on: ubuntu-latest
 
     steps:
@@ -100,7 +99,7 @@ jobs:
         path: os/
         merge-multiple: true
  
-    - name: Build and quality-check the plugin
+    - name: Build and test the plugin
       run: ./gradlew --no-daemon check buildExtension -PGHIDRA_INSTALL_DIR=${{ env.GHIDRA_INSTALL_DIR }}
 
     - name: Upload to Artifacts
