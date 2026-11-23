@@ -103,18 +103,9 @@ task cleanLibraries(type: Delete) {
 
 clean.dependsOn "cleanLibraries"
 
-// Java correctness and maintainability checks. PMD runs independently of packaging.
-apply plugin: 'pmd'
-
+// Project-specific Java tests stay in Gradle; PMD rules and execution live in shared CI.
 repositories {
 	mavenCentral()
-}
-
-pmd {
-	toolVersion = '7.29.0'
-	ruleSets = []
-	ruleSetFiles = files('config/pmd/quality.xml')
-	ignoreFailures = false
 }
 
 tasks.named('buildExtension') {
@@ -127,8 +118,6 @@ dependencies {
 	testImplementation platform('org.junit:junit-bom:6.1.3')
 	testImplementation 'org.junit.jupiter:junit-jupiter'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-	// Provide the actual Gradle JVM modules to PMD rather than relying on its fallback.
-	pmdAux files(new File(System.getProperty('java.home'), 'lib/jrt-fs.jar'))
 }
 
 tasks.named('test', Test) {

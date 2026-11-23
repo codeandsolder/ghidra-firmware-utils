@@ -18,7 +18,14 @@
 import firmware.common.UUIDUtils;
 import firmware.uefi_te.TELoader;
 import firmware.uefi_te.TerseExecutableHeader;
-import ghidra.app.decompiler.*;
+import ghidra.app.decompiler.ClangFieldToken;
+import ghidra.app.decompiler.ClangFuncNameToken;
+import ghidra.app.decompiler.ClangNode;
+import ghidra.app.decompiler.ClangTokenGroup;
+import ghidra.app.decompiler.ClangVariableToken;
+import ghidra.app.decompiler.DecompInterface;
+import ghidra.app.decompiler.DecompileOptions;
+import ghidra.app.decompiler.DecompileResults;
 import ghidra.app.plugin.core.datamgr.archive.DuplicateIdException;
 import ghidra.app.plugin.core.analysis.AutoAnalysisManager;
 import ghidra.app.script.GhidraScript;
@@ -31,11 +38,23 @@ import ghidra.app.util.bin.format.pe.PortableExecutable;
 import ghidra.app.util.opinion.PeLoader;
 import ghidra.app.services.DataTypeManagerService;
 import ghidra.program.model.address.Address;
-import ghidra.program.model.data.*;
-import ghidra.program.model.listing.*;
+import ghidra.program.model.data.DataType;
+import ghidra.program.model.data.DataTypeComponent;
+import ghidra.program.model.data.DataTypeManager;
+import ghidra.program.model.data.FunctionDefinition;
+import ghidra.program.model.data.ParameterDefinition;
+import ghidra.program.model.data.Structure;
+import ghidra.program.model.listing.Data;
+import ghidra.program.model.listing.Function;
+import ghidra.program.model.listing.Instruction;
+import ghidra.program.model.listing.Parameter;
+import ghidra.program.model.listing.ParameterImpl;
+import ghidra.program.model.listing.ReturnParameterImpl;
 import ghidra.program.model.listing.Function.FunctionUpdateType;
 import ghidra.program.model.mem.MemoryBlock;
-import ghidra.program.model.pcode.*;
+import ghidra.program.model.pcode.HighGlobal;
+import ghidra.program.model.pcode.HighVariable;
+import ghidra.program.model.pcode.PcodeOp;
 import ghidra.program.model.symbol.SourceType;
 import ghidra.util.Msg;
 import ghidra.util.exception.DuplicateNameException;
@@ -43,7 +62,10 @@ import ghidra.util.exception.InvalidInputException;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 
 /**
  * UEFI helper script
@@ -92,7 +114,7 @@ public class UEFIHelper extends GhidraScript {
 	private void updateFunctionSignature(Function function,
 			FunctionDefinition definition) throws DuplicateNameException, InvalidInputException {
 		// Build the list of parameters.
-		ArrayList<ParameterImpl> parameters = new ArrayList<>();
+		List<ParameterImpl> parameters = new ArrayList<>();
 		ParameterDefinition[] parameterDefinitions = definition.getArguments();
 		for (ParameterDefinition parameterDefinition : parameterDefinitions) {
 			parameters.add(new ParameterImpl(parameterDefinition.getName(),
@@ -261,7 +283,7 @@ public class UEFIHelper extends GhidraScript {
 					Msg.debug(this, "Found function name token: " + funcToken.toString());
 					Function function = getFunctionAt(
 							funcToken.getPcodeOp().getInput(0).getAddress());
-					ArrayList<ParameterImpl> parameters = new ArrayList<>();
+					List<ParameterImpl> parameters = new ArrayList<>();
 					Parameter[] originalParameters = function.getParameters();
 					int parameterNumber = 0;
 					// Parse each parameter token and update the function signature with each
@@ -275,7 +297,8 @@ public class UEFIHelper extends GhidraScript {
 								DataType parameterType =
 										variableToken.getHighVariable().getDataType();
 								Parameter originalParameter =
-										originalParameters[parameterNumber++];
+										originalParameters[parameterNumber];
+								parameterNumber++;
 								Msg.debug(this, "Found parameter: " +
 										variableToken.getHighVariable().getName() + " (" +
 										parameterType.getName() + ')');

@@ -71,14 +71,13 @@ Run the normal Gradle verification lifecycle before committing Java changes:
 ./gradlew --no-daemon -PGHIDRA_INSTALL_DIR=/path/to/ghidra check
 ```
 
-`check` runs the JUnit 6 regression tests, PMD 7 static analysis (`config/pmd/quality.xml`),
-and javac's portable lint checks with warnings treated as errors. The PMD rules
-cover parser construction safety, resource ownership, switch fall-through,
-imports, unused assignments, and other correctness/maintainability problems.
-There is no accepted PMD violation baseline.
+`check` runs the six JUnit 6 regression tests and javac's portable lint
+checks with warnings treated as errors. `buildExtension` depends on `check`.
 
-`buildExtension` also depends on `check`, and CI runs the quality gate during
-the Linux native build and again before packaging the multi-platform extension.
+CI also calls the [shared Java quality module](https://github.com/codeandsolder/ci-workflows/blob/main/.github/workflows/java-quality.yml),
+which detects all Git-tracked Java sources (including `ghidra_scripts`) and
+enforces the centrally maintained PMD rules. The rules and PMD dependency are
+defined only in shared CI, rather than duplicated in this repository.
 All test fixtures are synthetic and require no firmware sample or Ghidra GUI.
 
 ## Usage
