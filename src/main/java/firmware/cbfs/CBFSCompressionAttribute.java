@@ -39,7 +39,7 @@ import java.io.IOException;
  *
  * See CBFSConstants.CompressionAlgorithm for possible Compression Type values.
  */
-public class CBFSCompressionAttribute extends CBFSFileAttribute {
+public final class CBFSCompressionAttribute extends CBFSFileAttribute {
 	// Original header fields
 	private final int compressionType;
 	private final long uncompressedSize;
@@ -55,10 +55,11 @@ public class CBFSCompressionAttribute extends CBFSFileAttribute {
 			throw new IOException("Attribute tag mismatch: expected compression (0x42435A4C)");
 		}
 
-		ByteArrayProvider provider = new ByteArrayProvider(super.getData());
-		BinaryReader dataReader = new BinaryReader(provider, false);
-		compressionType = dataReader.readNextInt();
-		uncompressedSize = dataReader.readNextUnsignedInt();
+		try (ByteArrayProvider provider = new ByteArrayProvider(super.getData())) {
+			BinaryReader dataReader = new BinaryReader(provider, false);
+			compressionType = dataReader.readNextInt();
+			uncompressedSize = dataReader.readNextUnsignedInt();
+		}
 	}
 
 	/**

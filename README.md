@@ -61,6 +61,25 @@ by your Ghidra installation. If you have multiple Java runtime environments
 installed, select the correct JRE by setting the `JAVA_HOME` environment
 variable before building.
 
+
+## Development and Java quality checks
+
+Run the normal Gradle verification lifecycle before committing Java changes:
+
+```bash
+./gradlew --no-daemon -PGHIDRA_INSTALL_DIR=/path/to/ghidra check
+```
+
+`check` runs the JUnit 6 regression tests, PMD 7 static analysis (`config/pmd/quality.xml`),
+and javac's portable lint checks with warnings treated as errors. The PMD rules
+cover parser construction safety, resource ownership, switch fall-through,
+imports, unused assignments, and other correctness/maintainability problems.
+There is no accepted PMD violation baseline.
+
+`buildExtension` also depends on `check`, and CI runs the quality gate during
+the Linux native build and again before packaging the multi-platform extension.
+All test fixtures are synthetic and require no firmware sample or Ghidra GUI.
+
 ## Usage
 ### PCI option ROM loader
 Add a PCI option ROM to a Ghidra project. Legacy x86 option ROMs can be

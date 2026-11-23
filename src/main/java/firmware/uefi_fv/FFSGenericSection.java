@@ -26,7 +26,7 @@ import ghidra.formats.gfilesystem.GFile;
  * Parser for generic FFS sections. This only parses the common FFS section header; the rest of the
  * section is treated as the body.
  */
-public class FFSGenericSection extends FFSSection {
+public final class FFSGenericSection extends FFSSection {
 	/**
 	 * Constructs a FFSGenericSection from a specified BinaryReader.
 	 *

@@ -165,14 +165,15 @@ public class IntelFlashDescriptor {
 		}
 
 		// Read the fields in FLMAP0.
-		InputStream inputStream = reader.getByteProvider().getInputStream(reader.getPointerIndex());
-		BitInputStream bitInputStream = new BitInputStream(inputStream, ByteOrder.LITTLE_ENDIAN);
-		componentBase = (short) bitInputStream.readBits(8);
-		numFlashChips = (byte) bitInputStream.readBits(2);
-		bitInputStream.readBits(6);
-		regionBase = (short) bitInputStream.readBits(8);
-		numRegions = (byte) bitInputStream.readBits(3);
-		bitInputStream.readBits(5);
+		try (InputStream inputStream = reader.getByteProvider().getInputStream(reader.getPointerIndex());
+				BitInputStream bits = new BitInputStream(inputStream, ByteOrder.LITTLE_ENDIAN)) {
+			componentBase = (short) bits.readBits(8);
+			numFlashChips = (byte) bits.readBits(2);
+			bits.readBits(6);
+			regionBase = (short) bits.readBits(8);
+			numRegions = (byte) bits.readBits(3);
+			bits.readBits(5);
+		}
 
 		Msg.debug(this, String.format("Component section base address = 0x%X", componentBase));
 		Msg.debug(this, "Number of flash chips = " + numFlashChips);
@@ -180,10 +181,13 @@ public class IntelFlashDescriptor {
 		Msg.debug(this, "Number of regions = " + numRegions);
 
 		// Read the read clock frequency in the component section to determine the IFD version.
-		inputStream = reader.getByteProvider().getInputStream(headerOffset + componentBase * 0x10);
-		bitInputStream = new BitInputStream(inputStream, ByteOrder.LITTLE_ENDIAN);
-		bitInputStream.readBits(4 + 4 + 9);
-		byte readClockFrequency = (byte) bitInputStream.readBits(3);
+		byte readClockFrequency;
+		try (InputStream inputStream = reader.getByteProvider().getInputStream(
+				headerOffset + componentBase * 0x10);
+				BitInputStream bits = new BitInputStream(inputStream, ByteOrder.LITTLE_ENDIAN)) {
+			bits.readBits(4 + 4 + 9);
+			readClockFrequency = (byte) bits.readBits(3);
+		}
 
 		// IFD v1 has a hardcoded flash read frequency of 20 MHz.
 		if (readClockFrequency == IntelFlashDescriptorConstants.FlashFrequency.FREQ_20_MHZ) {
@@ -196,8 +200,8 @@ public class IntelFlashDescriptor {
 
 		// Read the region section.
 		reader.setPointerIndex(headerOffset + regionBase * 0x10);
-		int descriptorBase = reader.readNextUnsignedShort();
-		int descriptorLimit = reader.readNextUnsignedShort();
+		reader.readNextUnsignedShort(); // Descriptor region base
+		reader.readNextUnsignedShort(); // Descriptor region limit
 		int biosBase = reader.readNextUnsignedShort();
 		int biosLimit = reader.readNextUnsignedShort();
 		int meBase = reader.readNextUnsignedShort();
@@ -222,10 +226,10 @@ public class IntelFlashDescriptor {
 		int tenGbe1Limit = reader.readNextUnsignedShort();
 		int tenGbe2Base = reader.readNextUnsignedShort();
 		int tenGbe2Limit = reader.readNextUnsignedShort();
-		int region13Base = reader.readNextUnsignedShort();
-		int region13Limit = reader.readNextUnsignedShort();
-		int region14Base = reader.readNextUnsignedShort();
-		int region14Limit = reader.readNextUnsignedShort();
+		reader.readNextUnsignedShort(); // Reserved region 13 base
+		reader.readNextUnsignedShort(); // Reserved region 13 limit
+		reader.readNextUnsignedShort(); // Reserved region 14 base
+		reader.readNextUnsignedShort(); // Reserved region 14 limit
 		int pttBase = reader.readNextUnsignedShort();
 		int pttLimit = reader.readNextUnsignedShort();
 

@@ -16,6 +16,8 @@
 
 package firmware.common;
 
+import java.io.FileNotFoundException;
+
 import ghidra.util.Msg;
 import util.JNILibraryLoader;
 
@@ -26,7 +28,7 @@ public class EFIDecompressor {
 	static {
 		try {
 			JNILibraryLoader.loadLibrary("efidecompress");
-		} catch (Throwable t) {
+		} catch (FileNotFoundException | LinkageError | SecurityException t) {
 			Msg.showError(EFIDecompressor.class, null, "EFI Decompressor",
 					"Failed to load libefidecompress native library");
 			Msg.error(EFIDecompressor.class, t);

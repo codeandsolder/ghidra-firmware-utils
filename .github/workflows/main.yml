@@ -50,6 +50,10 @@ jobs:
     - name: Build natives
       run: ./gradlew efidecompressSharedLibrary copyLibraries -PGHIDRA_INSTALL_DIR=${{ env.GHIDRA_INSTALL_DIR }}
 
+    - name: Java quality gate
+      if: matrix.os == 'ubuntu-latest'
+      run: ./gradlew --no-daemon check -PGHIDRA_INSTALL_DIR=${{ env.GHIDRA_INSTALL_DIR }}
+
     - name: Upload natives
       uses: actions/upload-artifact@v4
       with:
@@ -95,8 +99,8 @@ jobs:
         path: os/
         merge-multiple: true
  
-    - name: Build the plugin
-      run: ./gradlew -PGHIDRA_INSTALL_DIR=${{ env.GHIDRA_INSTALL_DIR }}
+    - name: Build and quality-check the plugin
+      run: ./gradlew --no-daemon check buildExtension -PGHIDRA_INSTALL_DIR=${{ env.GHIDRA_INSTALL_DIR }}
 
     - name: Upload to Artifacts
       uses: actions/upload-artifact@v4

@@ -37,7 +37,7 @@ import ghidra.formats.gfilesystem.fileinfo.FileAttributes;
  *
  * This header follows the common section header. See FFSSection for additional information.
  */
-public class FFSUISection extends FFSSection {
+public final class FFSUISection extends FFSSection {
 	// Original header fields
 	private final String uiText;
 
@@ -82,6 +82,7 @@ public class FFSUISection extends FFSSection {
 	 *
 	 * @return FileAttributes for the current UI section
 	 */
+	@Override
 	public FileAttributes getFileAttributes() {
 		FileAttributes attributes = super.getFileAttributes();
 		attributes.add("Section Text", uiText);

@@ -72,7 +72,7 @@ public class TerseExecutableHeader implements StructConverter {
 		// Read the TE header fields.
 		signature = reader.readNextAsciiString(
 				TerseExecutableConstants.TE_SIGNATURE.length());
-		if (!signature.equals(TerseExecutableConstants.TE_SIGNATURE)) {
+		if (!TerseExecutableConstants.TE_SIGNATURE.equals(signature)) {
 			throw new IOException("Not a valid Terse Executable");
 		}
 
@@ -144,7 +144,7 @@ public class TerseExecutableHeader implements StructConverter {
 	 * @return the section headers in the current TE header
 	 */
 	public EFIImageSectionHeader[] getSections() {
-		return sectionHeaders;
+		return sectionHeaders.clone();
 	}
 
 	/**

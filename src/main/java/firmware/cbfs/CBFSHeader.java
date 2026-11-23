@@ -41,7 +41,7 @@ import java.io.IOException;
  *
  * There are four bytes of padding after the end of the CBFS master header.
  */
-public class CBFSHeader extends CBFSFile {
+public final class CBFSHeader extends CBFSFile {
 	// Original header fields
 	private final String signature;
 	private final long version;
@@ -65,7 +65,7 @@ public class CBFSHeader extends CBFSFile {
 		BinaryReader headerReader = new BinaryReader(getByteProvider(), false);
 
 		signature = headerReader.readNextAsciiString(CBFSConstants.CBFS_HEADER_SIGNATURE.length());
-		if (!signature.equals(CBFSConstants.CBFS_HEADER_SIGNATURE)) {
+		if (!CBFSConstants.CBFS_HEADER_SIGNATURE.equals(signature)) {
 			throw new IOException("Not a valid CBFS header");
 		}
 
@@ -100,6 +100,7 @@ public class CBFSHeader extends CBFSFile {
 	 *
 	 * @return the offset of the first CBFS file
 	 */
+	@Override
 	public long getOffset() {
 		return offset;
 	}

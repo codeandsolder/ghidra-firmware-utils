@@ -19,7 +19,8 @@ package firmware.uefi_fv;
 import java.io.IOException;
 
 import ghidra.app.util.bin.ByteProvider;
-import ghidra.formats.gfilesystem.*;
+import ghidra.formats.gfilesystem.FSRLRoot;
+import ghidra.formats.gfilesystem.FileSystemService;
 import ghidra.formats.gfilesystem.factory.GFileSystemFactoryByteProvider;
 import ghidra.formats.gfilesystem.factory.GFileSystemProbeByteProvider;
 import ghidra.util.exception.CancelledException;

@@ -57,7 +57,7 @@ import ghidra.util.Msg;
  *
  * TODO: It would probably be better if this was refactored as FFSGUIDDefinedSectionFactory.
  */
-public class FFSGUIDDefinedSection extends FFSSection {
+public final class FFSGUIDDefinedSection extends FFSSection {
 	private static final int GUID_DEFINED_HEADER_SIZE = 20;
 	private static final int AMD_ZLIB_HEADER_SIZE = 0x100;
 	private static final int AMD_ZLIB_COMPRESSED_SIZE_OFFSET = 0x14;
@@ -301,6 +301,7 @@ public class FFSGUIDDefinedSection extends FFSSection {
 	 *
 	 * @return FileAttributes for the current GUID-defined section
 	 */
+	@Override
 	public FileAttributes getFileAttributes() {
 		FileAttributes attributes = super.getFileAttributes();
 		attributes.add("Section Definition GUID", sectionDefinitionGuid.toString());

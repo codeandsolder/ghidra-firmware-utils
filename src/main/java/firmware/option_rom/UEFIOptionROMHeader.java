@@ -56,7 +56,7 @@ import java.io.IOException;
  * Compression Algorithm, which is a combination of the LZ77 algorithm and Huffman coding. The
  * EFIDecompressor class is used to handle compressed images.
  */
-public class UEFIOptionROMHeader extends OptionROMHeader {
+public final class UEFIOptionROMHeader extends OptionROMHeader {
 	// Original header fields
 	private final short imageSize;
 	private final int efiSignature;
@@ -120,6 +120,7 @@ public class UEFIOptionROMHeader extends OptionROMHeader {
 	 *
 	 * @return FileAttributes for the current image
 	 */
+	@Override
 	public FileAttributes getFileAttributes() {
 		FileAttributes attributes = super.getFileAttributes();
 		attributes.add("EFI Subsystem", OptionROMConstants.EFIImageSubsystem.toString(efiSubsystem));

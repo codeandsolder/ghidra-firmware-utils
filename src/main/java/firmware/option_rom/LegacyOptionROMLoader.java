@@ -39,7 +39,7 @@ import java.util.List;
 public class LegacyOptionROMLoader extends AbstractLibrarySupportLoader {
 	@Override
 	public Collection<LoadSpec> findSupportedLoadSpecs(ByteProvider provider) {
-		ArrayList<LoadSpec> loadSpecs = new ArrayList<>();
+		List<LoadSpec> loadSpecs = new ArrayList<>();
 		BinaryReader reader = new BinaryReader(provider, true);
 		try {
 			new LegacyOptionROMHeader(reader);
@@ -59,11 +59,10 @@ public class LegacyOptionROMLoader extends AbstractLibrarySupportLoader {
 
 		// Create a segment for the entire option ROM.
 		FlatProgramAPI api = new FlatProgramAPI(program, settings.monitor());
-		InputStream romStream = settings.provider().getInputStream(0);
-		try {
-			api.createMemoryBlock("Option ROM", api.toAddr(0), romStream, romStream.available(),
-					false);
-		} catch (Exception e) {
+		try (InputStream romStream = settings.provider().getInputStream(0)) {
+			api.createMemoryBlock("Option ROM", api.toAddr(0), romStream,
+					settings.provider().length(), false);
+		} catch (Exception e) { // NOPMD Ghidra FlatProgramAPI#createMemoryBlock declares Exception
 			Msg.showError(this, null, getName() + " Loader", e.getMessage(), e);
 			return;
 		}
@@ -85,7 +84,7 @@ public class LegacyOptionROMLoader extends AbstractLibrarySupportLoader {
 				api.createData(api.toAddr(header.getPCIRHeaderOffset() +
 						pcirHeader.getDeviceListOffset()), deviceList.toDataType());
 			}
-		} catch (Exception e) {
+		} catch (Exception e) { // NOPMD Ghidra FlatProgramAPI#createMemoryBlock declares Exception
 			Msg.showError(this, null, getName() + " Loader", e.getMessage(), e);
 		}
 	}

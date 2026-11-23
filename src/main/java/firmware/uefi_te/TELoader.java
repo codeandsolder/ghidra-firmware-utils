@@ -50,9 +50,9 @@ public class TELoader extends AbstractLibrarySupportLoader {
 
 	@Override
 	public Collection<LoadSpec> findSupportedLoadSpecs(ByteProvider provider) {
-		ArrayList<LoadSpec> loadSpecs = new ArrayList<>();
+		List<LoadSpec> loadSpecs = new ArrayList<>();
 		BinaryReader reader = new BinaryReader(provider, true);
-		TerseExecutableHeader header = null;
+		TerseExecutableHeader header;
 		try {
 			header = new TerseExecutableHeader(reader);
 		} catch (IOException e) {
@@ -72,6 +72,9 @@ public class TELoader extends AbstractLibrarySupportLoader {
 				loadSpecs.add(new LoadSpec(this, header.getImageBase(),
 						new LanguageCompilerSpecPair("AARCH64:LE:64:v8A", "windows"), true));
 				break;
+			default:
+				// Unsupported machine architectures have no matching load spec.
+				break;
 		}
 
 		return loadSpecs;
@@ -83,14 +86,14 @@ public class TELoader extends AbstractLibrarySupportLoader {
 		TerseExecutableHeader teHeader = new TerseExecutableHeader(reader);
 		EFIImageSectionHeader[] sectionHeaders = teHeader.getSections();
 		FlatProgramAPI api = new FlatProgramAPI(program, settings.monitor());
-		InputStream inputStream = settings.provider().getInputStream(0);
-
 		try {
 			// Create a segment for the TE header and section headers.
-			api.createMemoryBlock(HEADERS, api.toAddr(
-					teHeader.getImageBase() + teHeader.getHeaderOffset()), inputStream,
-					TerseExecutableConstants.TE_HEADER_SIZE + teHeader.getNumSections() *
-					TerseExecutableConstants.SECTION_HEADER_SIZE, false);
+			try (InputStream headerStream = settings.provider().getInputStream(0)) {
+				api.createMemoryBlock(HEADERS, api.toAddr(
+						teHeader.getImageBase() + teHeader.getHeaderOffset()), headerStream,
+						TerseExecutableConstants.TE_HEADER_SIZE + teHeader.getNumSections() *
+						TerseExecutableConstants.SECTION_HEADER_SIZE, false);
+			}
 
 			// Mark the TE header and section headers as data.
 			api.createData(api.toAddr(teHeader.getImageBase() + teHeader.getHeaderOffset()),
@@ -110,12 +113,11 @@ public class TELoader extends AbstractLibrarySupportLoader {
 					continue;
 				}
 
-				inputStream = settings.provider().getInputStream(sectionHeader.getVirtualAddress() -
-						teHeader.getHeaderOffset());
 				long startAddress = teHeader.getImageBase() + sectionHeader.getVirtualAddress();
-				try {
+				try (InputStream sectionStream = settings.provider().getInputStream(
+						sectionHeader.getVirtualAddress() - teHeader.getHeaderOffset())) {
 					MemoryBlock section = api.createMemoryBlock(sectionHeader.getName(),
-							api.toAddr(startAddress), inputStream, sectionHeader.getVirtualSize(),
+							api.toAddr(startAddress), sectionStream, sectionHeader.getVirtualSize(),
 							false);
 
 					// Set the appropriate permissions for this segment.
@@ -130,8 +132,7 @@ public class TELoader extends AbstractLibrarySupportLoader {
 					Msg.warn(this,
 							"Skipping overflowing " + sectionHeader.getName() + " section:", e);
 				} catch (AddressOutOfBoundsException e) {
-					// This is thrown immediately after AddressOverflowException. Ignore this since
-					// we should have already shown the warning message.
+					Msg.warn(this, "Skipping out-of-bounds " + sectionHeader.getName() + " section", e);
 				}
 			}
 
@@ -145,7 +146,7 @@ public class TELoader extends AbstractLibrarySupportLoader {
 			Address entryPoint = api.toAddr(teHeader.getImageBase() + teHeader.getEntryPointAddress());
 			api.addEntryPoint(entryPoint);
 			api.createFunction(entryPoint, "_ModuleEntryPoint");
-		} catch (Exception e) {
+		} catch (Exception e) { // NOPMD Ghidra FlatProgramAPI#createMemoryBlock declares Exception
 			Msg.showError(this, null, getName() + " Loader", e.getMessage(), e);
 		}
 	}

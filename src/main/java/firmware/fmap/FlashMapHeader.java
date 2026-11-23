@@ -64,7 +64,7 @@ public class FlashMapHeader {
 	 */
 	public FlashMapHeader(BinaryReader reader) throws IOException {
 		signature = reader.readNextAsciiString(FlashMapConstants.FMAP_SIGNATURE.length());
-		if (!signature.equals(FlashMapConstants.FMAP_SIGNATURE)) {
+		if (!FlashMapConstants.FMAP_SIGNATURE.equals(signature)) {
 			throw new IOException("Not a valid flash map");
 		}
 
@@ -89,7 +89,7 @@ public class FlashMapHeader {
 	 * @return an array of FlashMapAreas
 	 */
 	public FlashMapArea[] getAreas() {
-		return areas;
+		return areas.clone();
 	}
 
 	/**
