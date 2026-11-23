@@ -50,7 +50,7 @@ public class FFSUISection extends FFSSection {
 		super(reader);
 
 		// Read the UI section text.
-		uiText = reader.readNextUnicodeString((int) length() / 2);
+		uiText = reader.readNextUnicodeString(FFSSection.checkedByteArrayLength(length()) / 2);
 	}
 
 	/**

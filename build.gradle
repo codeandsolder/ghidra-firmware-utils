@@ -102,3 +102,14 @@ task cleanLibraries(type: Delete) {
 }
 
 clean.dependsOn "cleanLibraries"
+
+// Synthetic binary regression checks run without the Ghidra GUI.
+tasks.register("verifyFfsParsing", JavaExec) {
+	group = "verification"
+	description = "Validate normal, extended and malformed UEFI section headers"
+	dependsOn tasks.named("testClasses")
+	classpath = sourceSets.test.runtimeClasspath
+	mainClass = "firmware.uefi_fv.FFSSectionParsingTest"
+}
+
+buildExtension.dependsOn "verifyFfsParsing"

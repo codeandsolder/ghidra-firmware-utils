@@ -55,9 +55,12 @@ public class FFSVersionSection extends FFSSection {
 	public FFSVersionSection(BinaryReader reader, FileSystemIndexHelper<UEFIFile> fsih,
 			GFile parent) throws IOException {
 		super(reader);
+		if (super.length() < Short.BYTES) {
+			throw new IOException("Truncated FFS version section");
+		}
 
 		buildNumber = reader.readNextShort();
-		versionString = reader.readNextUnicodeString((int) length() / 2);
+		versionString = reader.readNextUnicodeString(FFSSection.checkedByteArrayLength(length()) / 2);
 
 		// Add this section to the current FS.
 		fsih.storeFileWithParent(getName(), parent, -1, false, length(), this);
@@ -79,7 +82,7 @@ public class FFSVersionSection extends FFSSection {
 	 */
 	@Override
 	public int getHeaderLength() {
-		return UEFIFFSConstants.FFS_SECTION_HEADER_SIZE + 2;
+		return super.getHeaderLength() + 2;
 	}
 
 	/**

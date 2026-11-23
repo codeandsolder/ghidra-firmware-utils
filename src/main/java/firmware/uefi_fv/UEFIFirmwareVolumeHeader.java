@@ -99,33 +99,37 @@ public class UEFIFirmwareVolumeHeader implements UEFIFile {
 	 */
 	public static long findNext(ByteProvider provider, long startOffset, TaskMonitor monitor)
 			throws IOException, CancelledException {
-		BinaryReader reader = new BinaryReader(provider, true);
-		reader.setPointerIndex(startOffset);
-		long eofPos = provider.length() - UEFIFirmwareVolumeConstants.UEFI_FV_SIGNATURE_LEN;
-		long signaturePosition;
-		while ((signaturePosition = reader.getPointerIndex()) < eofPos) {
-			monitor.checkCanceled();
-			monitor.setProgress(signaturePosition);
-
-			int signature = reader.readNextInt();
-			if (signaturePosition >= SIGNATURE_OFFSET &&
-					signature == UEFIFirmwareVolumeConstants.UEFI_FV_SIGNATURE_LE) {
+		long scanOffset = Math.max(0, startOffset);
+		long lastCandidate = provider.length() - UEFIFirmwareVolumeConstants.UEFI_FV_SIGNATURE_LEN;
+		while (scanOffset <= lastCandidate) {
+			monitor.checkCancelled();
+			monitor.setProgress(scanOffset);
+			int count = (int) Math.min(SIGNATURE_SCAN_WINDOW, provider.length() - scanOffset);
+			byte[] bytes = provider.readBytes(scanOffset, count);
+			for (int i = 0; i <= count - UEFIFirmwareVolumeConstants.UEFI_FV_SIGNATURE_LEN; i++) {
+				long signaturePosition = scanOffset + i;
+				if (signaturePosition < SIGNATURE_OFFSET ||
+						bytes[i] != '_' || bytes[i + 1] != 'F' ||
+						bytes[i + 2] != 'V' || bytes[i + 3] != 'H') {
+					continue;
+				}
 				long endOfHeader = signaturePosition - SIGNATURE_OFFSET +
 						UEFIFirmwareVolumeConstants.UEFI_FV_HEADER_MIN_SIZE;
-				if (endOfHeader >= provider.length()) {
-					return -1;
+				if (endOfHeader > provider.length()) {
+					continue;
 				}
-
 				Msg.debug(UEFIFirmwareVolumeHeader.class,
-					String.format("Found _FVH signature at 0x%X", signaturePosition));
+						String.format("Found _FVH signature at 0x%X", signaturePosition));
 				return signaturePosition - SIGNATURE_OFFSET;
 			}
+			// Keep the last three bytes for signatures crossing a chunk boundary.
+			scanOffset += count - (UEFIFirmwareVolumeConstants.UEFI_FV_SIGNATURE_LEN - 1);
 		}
-
 		return -1;
 	}
 
 	private static final int SIGNATURE_OFFSET = 40;
+	private static final int SIGNATURE_SCAN_WINDOW = 64 * 1024;
 
 	// Original header fields
 	private final byte[] zeroVector;
@@ -133,9 +137,9 @@ public class UEFIFirmwareVolumeHeader implements UEFIFile {
 	private final long size;
 	private final int signature;
 	private final int attributes;
-	private final short headerSize;
+	private final int headerSize;
 	private final short checksum;
-	private final short extendedHeaderOffset;
+	private final int extendedHeaderOffset;
 	private final byte revision;
 
 	// Extended header fields
@@ -154,13 +158,18 @@ public class UEFIFirmwareVolumeHeader implements UEFIFile {
 	 * @param parent the parent directory in the specified FileSystemIndexHelper
 	 */
 	public UEFIFirmwareVolumeHeader(BinaryReader reader, FileSystemIndexHelper<UEFIFile> fsih, GFile parent,
-			boolean nested) throws IOException {
+			boolean nested, long containerEnd) throws IOException {
 		baseIndex = reader.getPointerIndex();
+		if (containerEnd < baseIndex ||
+				containerEnd - baseIndex < UEFIFirmwareVolumeConstants.UEFI_FV_HEADER_MIN_SIZE) {
+			throw new IOException("Truncated firmware volume header");
+		}
 		zeroVector = reader.readNextByteArray(16);
 
 		fileSystemGuid = UUIDUtils.fromBinaryReader(reader);
 		size = reader.readNextLong();
-		if (size < UEFIFirmwareVolumeConstants.UEFI_FV_HEADER_MIN_SIZE) {
+		if (size < UEFIFirmwareVolumeConstants.UEFI_FV_HEADER_MIN_SIZE ||
+				size > containerEnd - baseIndex) {
 			throw new IOException("Not a valid UEFI FV header");
 		}
 
@@ -170,15 +179,18 @@ public class UEFIFirmwareVolumeHeader implements UEFIFile {
 		}
 
 		attributes = reader.readNextInt();
-		headerSize = reader.readNextShort();
+		headerSize = reader.readNextUnsignedShort();
 		if (headerSize < UEFIFirmwareVolumeConstants.UEFI_FV_HEADER_MIN_SIZE || headerSize > size ||
 				headerSize % 2 != 0) {
 			throw new IOException("Not a valid UEFI FV Header");
 		}
 
 		checksum = reader.readNextShort();
-		extendedHeaderOffset = reader.readNextShort();
-		if (extendedHeaderOffset > size - UEFIFirmwareVolumeConstants.UEFI_FV_EXT_HEADER_SIZE) {
+		extendedHeaderOffset = reader.readNextUnsignedShort();
+		if (extendedHeaderOffset != 0 && (extendedHeaderOffset <
+				UEFIFirmwareVolumeConstants.UEFI_FV_HEADER_MIN_SIZE ||
+				extendedHeaderOffset > headerSize -
+				UEFIFirmwareVolumeConstants.UEFI_FV_EXT_HEADER_SIZE)) {
 			throw new IOException("Not a valid UEFI FV Header");
 		}
 
@@ -190,18 +202,16 @@ public class UEFIFirmwareVolumeHeader implements UEFIFile {
 		}
 
 		// Read the extended header fields (if present).
-		long bodyIndex;
+		long bodyIndex = baseIndex + headerSize;
 		if (revision == 2 && extendedHeaderOffset > 0) {
 			reader.setPointerIndex(baseIndex + extendedHeaderOffset);
 			fvName = UUIDUtils.fromBinaryReader(reader);
 			extendedHeaderSize = reader.readNextInt();
-			if (extendedHeaderOffset + extendedHeaderSize > size) {
+			if (extendedHeaderSize < UEFIFirmwareVolumeConstants.UEFI_FV_EXT_HEADER_SIZE ||
+					extendedHeaderSize > headerSize - extendedHeaderOffset) {
 				throw new IOException("Not a valid UEFI FV Header");
 			}
 
-			bodyIndex = baseIndex + extendedHeaderOffset + extendedHeaderSize;
-		} else {
-			bodyIndex = baseIndex + headerSize;
 		}
 
 		// Retrieve the current volume's alignment.
@@ -233,7 +243,7 @@ public class UEFIFirmwareVolumeHeader implements UEFIFile {
 
 		// Ignore NVRAM volumes - add the contents as a raw file, and skip FFS file parsing.
 		if (fileSystemGuid.equals(UEFIFirmwareVolumeConstants.EFI_SYSTEM_NV_DATA_FV_GUID)) {
-			new FFSRawFile(reader, (int) size - UEFIFirmwareVolumeConstants.UEFI_FV_HEADER_MIN_SIZE, fsih, fileImpl);
+			new FFSRawFile(reader, baseIndex + size - reader.getPointerIndex(), fsih, fileImpl);
 		}
 		else {
 			// Read the files in the current firmware volume.
@@ -251,7 +261,7 @@ public class UEFIFirmwareVolumeHeader implements UEFIFile {
 				}
 
 				try {
-					UEFIFFSFile file = new UEFIFFSFile(reader, fsih, fileImpl);
+					new UEFIFFSFile(reader, fsih, fileImpl, baseIndex + size);
 				}
 				catch (IOException e) {
 					break;

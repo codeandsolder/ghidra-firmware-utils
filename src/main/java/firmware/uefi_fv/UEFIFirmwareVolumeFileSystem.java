@@ -52,10 +52,16 @@ public class UEFIFirmwareVolumeFileSystem implements GFileSystem {
 		while (headerIndex != -1) {
 			// Add each firmware volume as a directory.
 			reader.setPointerIndex(headerIndex);
-			UEFIFirmwareVolumeHeader header =
-					new UEFIFirmwareVolumeHeader(reader, fsih, fsih.getRootDir(), false);
-			headerIndex =
-					UEFIFirmwareVolumeHeader.findNext(provider, headerIndex + header.length(), monitor);
+			try {
+				UEFIFirmwareVolumeHeader header = new UEFIFirmwareVolumeHeader(
+						reader, fsih, fsih.getRootDir(), false, provider.length());
+				headerIndex = UEFIFirmwareVolumeHeader.findNext(
+						provider, headerIndex + header.length(), monitor);
+			}
+			catch (IOException e) {
+				// A signature alone is not a validated firmware volume.
+				headerIndex = UEFIFirmwareVolumeHeader.findNext(provider, headerIndex + 1, monitor);
+			}
 		}
 	}
 

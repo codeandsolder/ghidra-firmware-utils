@@ -32,7 +32,7 @@ import ghidra.formats.gfilesystem.fileinfo.FileAttributes;
  */
 public class FFSRawFile implements UEFIFile {
 	private final long base;
-	private final int length;
+	private final long length;
 	private final ByteProvider provider;
 
 	/**
@@ -43,7 +43,7 @@ public class FFSRawFile implements UEFIFile {
 	 * @param fsih   the specified {@link FileSystemIndexHelper} that handles files
 	 * @param parent the parent directory in the specified FileSystemIndexHelper
 	 */
-	public FFSRawFile(BinaryReader reader, int length, FileSystemIndexHelper<UEFIFile> fsih, GFile parent)
+	public FFSRawFile(BinaryReader reader, long length, FileSystemIndexHelper<UEFIFile> fsih, GFile parent)
 			throws IOException {
 		base = reader.getPointerIndex();
 		this.length = length;
