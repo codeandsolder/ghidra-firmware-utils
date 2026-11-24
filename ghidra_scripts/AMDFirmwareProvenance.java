@@ -29,6 +29,7 @@ import java.util.HexFormat;
 public class AMDFirmwareProvenance extends GhidraScript {
     private static final String GROUP = "AMD Firmware Source";
     private static final String BOOKMARK_TYPE = "Note";
+    private static final String ROM_OFFSET = "rom_offset";
 
     @Override
     protected void run() throws Exception {
@@ -44,7 +45,7 @@ public class AMDFirmwareProvenance extends GhidraScript {
         if (root.isJsonArray()) {
             applyExecutable(manifest, root.getAsJsonArray());
         } else if (root.isJsonObject()) {
-            applyRom(manifest, root.getAsJsonObject());
+            applyRom(root.getAsJsonObject());
         } else {
             throw new IOException("Manifest root must be the executable array or ROM layout object");
         }
@@ -71,10 +72,12 @@ public class AMDFirmwareProvenance extends GhidraScript {
         try (InputStream input = Files.newInputStream(path)) {
             byte[] buffer = new byte[1 << 15];
             int count;
-            while ((count = input.read(buffer)) >= 0) {
+            count = input.read(buffer);
+            while (count >= 0) {
                 if (count > 0) {
                     digest.update(buffer, 0, count);
                 }
+                count = input.read(buffer);
             }
         }
         return HexFormat.of().formatHex(digest.digest());
@@ -188,7 +191,7 @@ public class AMDFirmwareProvenance extends GhidraScript {
                 address, BOOKMARK_TYPE, category, description);
     }
 
-    private void applyRom(Path manifest, JsonObject layout) throws Exception {
+    private void applyRom(JsonObject layout) throws Exception {
         String originalSha = get(layout, "input_sha256");
         String romSha = get(layout, "rom_sha256");
         if (!digest(romSha)) {
@@ -197,7 +200,7 @@ public class AMDFirmwareProvenance extends GhidraScript {
         Path original = Path.of(currentProgram.getExecutablePath()).toAbsolutePath().normalize();
         requireOriginal(original, originalSha);
         verifyImportedPath(original);
-        long romOffset = number(layout, "rom_offset");
+        long romOffset = number(layout, ROM_OFFSET);
         long romSize = number(layout, "rom_size");
         if (romSize <= 0 || romOffset < 0 || romOffset + romSize > Files.size(original)) {
             throw new IOException("ROM region is not within original input");
@@ -207,7 +210,7 @@ public class AMDFirmwareProvenance extends GhidraScript {
         info.setString(GROUP + " / Source SHA-256", originalSha);
         info.setString(GROUP + " / ROM offset", Long.toString(romOffset));
         info.setString(GROUP + " / ROM bytes", Long.toString(romSize));
-        bookmark(mapped(romOffset, number(layout.getAsJsonObject("fet"), "rom_offset"), romSize),
+        bookmark(mapped(romOffset, number(layout.getAsJsonObject("fet"), ROM_OFFSET), romSize),
                 "AMD Firmware FET", "Original signed-root entry table");
 
         int roots = 0;
@@ -216,7 +219,7 @@ public class AMDFirmwareProvenance extends GhidraScript {
         for (JsonElement element : directories) {
             JsonObject directory = element.getAsJsonObject();
             String kind = get(directory, "kind");
-            long at = number(directory, "rom_offset");
+            long at = number(directory, ROM_OFFSET);
             bookmark(mapped(romOffset, at, romSize), "AMD " + kind + " directory",
                     "Original " + kind + " directory; entries=" + get(directory, "entries")
                     + "; checksum_valid=" + get(directory, "checksum_valid"));
@@ -224,7 +227,7 @@ public class AMDFirmwareProvenance extends GhidraScript {
             JsonArray entries = directory.getAsJsonArray("references");
             for (JsonElement child : entries) {
                 JsonObject ref = child.getAsJsonObject();
-                JsonElement target = ref.get("rom_offset");
+                JsonElement target = ref.get(ROM_OFFSET);
                 if (target == null || target.isJsonNull()
                         || !ref.get("within_rom").getAsBoolean()) {
                     continue;
