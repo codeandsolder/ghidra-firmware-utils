@@ -231,7 +231,13 @@ public class AMDFirmwareProvenance extends GhidraScript {
                 }
                 long phys = target.getAsLong();
                 long size = number(ref, "declared_size");
-                if (size <= 0 || phys < 0 || phys + size > romSize) {
+                // Zero-size directory references are absent payloads, not
+                // flash objects at the beginning of the image.
+                if (size == 0) {
+                    continue;
+                }
+                if (size < 0 || phys < 0 || phys >= romSize
+                        || size > romSize - phys) {
                     throw new IOException("Resolved AMD reference escapes original ROM");
                 }
                 Address address = mapped(romOffset, phys, romSize);
