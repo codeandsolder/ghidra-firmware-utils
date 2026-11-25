@@ -107,6 +107,52 @@ as firmware volumes by selecting **Open File System** in the right-click menu
 for the specified freeform/raw file. If no nested firmware volume is found, an
 error message will be displayed (`No file system provider for...`).
 
+### Original AMD PSP/UEFI provenance annotations
+
+`AMDFirmwareProvenance.java` applies **source-verified** Zen3inator firmware
+metadata to Ghidra imports. Use the full original vendor image, not a partial
+decompression product; the script checks the actual imported file's SHA-256
+against Zen3inator's original manifest before applying any annotations.
+
+To import a decoded PE32/TE module, first export the complete source-bound
+module set from the Rust firmware parser:
+
+```sh
+zen3inator executable-selectors ORIGINAL.ROM > selectors.json
+zen3inator executable-extract-batch ORIGINAL.ROM modules selectors.json
+/path/to/ghidra/support/analyzeHeadless /home/jan/build/firmware-ghidra GhidraSources \
+  -import modules/0000.bin \
+  -scriptPath /path/to/ghidra-firmware-utils/ghidra_scripts \
+  -postScript AMDFirmwareProvenance.java modules/index.json -noanalysis
+```
+
+Each import preserves its original ROM and FFS SHA-256, file GUID, physical
+compressed-section root, decoded-layer identity and virtual file/section
+offsets in Ghidra Program Info, alongside any original firmware UI name.
+Separate original compressed roots containing byte-identical executables
+remain distinct. The original PE/TE bytes and their relocation inventory
+are unchanged. Importing with `-noanalysis` is an optional fast inventory
+step; remove it for decompiler auto-analysis.
+
+To annotate original AMD boot firmware, import the original SPI image using
+the Ghidra **BinaryLoader** and annotate its exact original directory graph:
+
+```sh
+zen3inator inspect ORIGINAL.ROM --json > layout.json
+/path/to/ghidra/support/analyzeHeadless /home/jan/build/firmware-ghidra GhidraRaw \
+  -import ORIGINAL.ROM -loader BinaryLoader -processor x86:LE:64:default \
+  -scriptPath /path/to/ghidra-firmware-utils/ghidra_scripts \
+  -postScript AMDFirmwareProvenance.java layout.json -noanalysis
+```
+
+This bookmarks original AMD FET, PSP and BIOS directory roots, and only
+in-range, nonempty component entries. Zero-size directory placeholders are
+not treated as flash objects. It does not claim to identify the function of
+unknown signed PSP payloads or prove their boot compatibility; source type,
+version and signature analysis belong to the original signed firmware corpus.
+The original ROM can instead be loaded as an x86/UEFI application or explored
+through this extension's firmware filesystem separately.
+
 ### UEFI helper script
 The helper script is included in the plugin's ghidra_scripts directory, which
 should be automatically added to the list of script directories in Ghidra.
