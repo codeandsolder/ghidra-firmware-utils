@@ -43,7 +43,7 @@ jobs:
         java-version: '25'
 
     - name: Install Ghidra
-      uses: antoniovazquezblanco/setup-ghidra@4ecf6e0dc501f8efc1d74d93645c6d5c1df7f441 # v1.2.1
+      uses: antoniovazquezblanco/setup-ghidra@021eb688b995b2c3aa4d607dea9cb332ab4eb9c8 # v1.2.4
       with:
         auth_token: ${{ secrets.GITHUB_TOKEN }}
         version: '12.2'
@@ -85,7 +85,7 @@ jobs:
         java-version: '21'
 
     - name: Install Ghidra
-      uses: antoniovazquezblanco/setup-ghidra@4ecf6e0dc501f8efc1d74d93645c6d5c1df7f441 # v1.2.1
+      uses: antoniovazquezblanco/setup-ghidra@021eb688b995b2c3aa4d607dea9cb332ab4eb9c8 # v1.2.4
       with:
         auth_token: ${{ secrets.GITHUB_TOKEN }}
         version: ${{ matrix.ghidra }}
