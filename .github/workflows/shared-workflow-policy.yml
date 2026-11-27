@@ -16,4 +16,4 @@ permissions:
 
 jobs:
   validate:
-    uses: codeandsolder/ci-workflows/.github/workflows/workflow-concurrency.yml@7df510a2053e220c010c331b5daef81a593a19bb # main
+    uses: codeandsolder/ci-workflows/.github/workflows/workflow-concurrency.yml@2bf1fa8216c6b09836ea837d663ca616d0ec6427 # main
