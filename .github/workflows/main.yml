@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   java-quality:
-    uses: codeandsolder/ci-workflows/.github/workflows/source-quality.yml@2bf1fa8216c6b09836ea837d663ca616d0ec6427 # main
+    uses: codeandsolder/ci-workflows/.github/workflows/source-quality.yml@db22785ec97c653cf0ec96b6964ded8158436f3c # main
 
   build-natives:
     strategy:
